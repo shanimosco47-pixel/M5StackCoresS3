@@ -624,6 +624,8 @@ void draw_conversation()
     case ConvStatus::Connecting: status_text = "接続中…"; status_color = warn; break;
     case ConvStatus::Listening: status_text = "接続（待受）"; status_color = ok; break;
     case ConvStatus::Talking: status_text = "通話中"; status_color = ok; break;
+    case ConvStatus::Hearing: status_text = "Hearing"; status_color = ok; break;
+    case ConvStatus::Thinking: status_text = "Thinking"; status_color = warn; break;
     case ConvStatus::Yielded: status_text = "音声再生中"; status_color = dim; break;
     case ConvStatus::Reconnecting: status_text = "再接続中…"; status_color = warn; break;
     case ConvStatus::Error: status_text = "接続エラー"; status_color = err; break;
@@ -636,6 +638,7 @@ void draw_conversation()
     const int dy = 26;
     const char* provider_name = g_provider == 1   ? "Gemini Live"
                                 : g_provider == 2 ? "XiaoZhi"
+                                : g_provider == 3 ? "Relay"
                                                   : "OpenAI Realtime";
     draw_kv(y, "サービス", provider_name, fg); y += dy;
     draw_kv(y, "状態", status_text, status_color); y += dy;

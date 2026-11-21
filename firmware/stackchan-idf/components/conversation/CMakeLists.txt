@@ -3,6 +3,7 @@ idf_component_register(
         "openai_realtime_client.cpp"
         "gemini_live_client.cpp"
         "xiaozhi_client.cpp"
+        "relay_client.cpp"
         "base64.cpp"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
@@ -10,6 +11,7 @@ idf_component_register(
         tl_expected
     PRIV_REQUIRES
         esp_websocket_client
+        esp_http_client
         esp_audio_codec
         json
         mbedtls

@@ -63,3 +63,9 @@ and request a spoken completion announcement only after hardware validation.
 - Plan saved before delegated implementation; active session tracks the exact user continuation.
 - Current branch feature/cloud-voice-relay is an existing suitable checkout, not main.
 - Root already observed/fixed optional-parameter regression;43tests pass locally, not yet committed.
+
+- Implementation/integration complete: durable admission, v3, Relay firmware, private backup/provision, build/flash.
+-71server tests,8gate tests, firmware hosttests pass. Real provider chain and directdevice auth validated.
+- User responsiveness feedback added local Hebrew hearing/thinking/speaking and touch badge.
+- USD freshness live failure fixed using structured official BankofIsrael lookup, tested live in deployedrevision8.
+- Current-headGitHubreview and user final physical checks pending; completionnotice unarmed.

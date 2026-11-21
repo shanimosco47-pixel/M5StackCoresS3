@@ -72,4 +72,8 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+enum class VoiceIndicator { Offline, Ready, Hearing, Thinking, Speaking, Error, Touch };
+// Hebrew status uses the same font and bidi preparation as the subtitle renderer.
+void draw_voice_indicator(RichCanvas& canvas, VoiceIndicator phase, std::uint32_t now_ms);
+
 } // namespace stackchan::avatar

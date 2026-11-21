@@ -1,6 +1,6 @@
 # Active M5 project session
 
-Last consolidated: 2026-11-21. Current state supersedes older session entries in Git history.
+Last consolidated: 2026-11-21. This checkpoint supersedes earlier session history.
 
 ## Exact user instructions
 
@@ -10,107 +10,85 @@ Last consolidated: 2026-11-21. Current state supersedes older session entries in
 - תשמור את כל העבודה והתיעוד כאן — https://github.com/shanimosco47-pixel/M5StackCoresS3
 - make sure there is a working github indipendent review working
 - כשתסיים תשמיע צליל ב M5 או יותר טוב - שיגיד שהוא סיים את העדכון
-- Latest instructions: "זה קריטי או שאפשר בלי?" (Azure), approved Google Cloud TTS alternative with "מצויין" and "GO".
-- Latest continuation: "בסדר, אפשר להתקדם עם זה, יש יותר טובים מזה, אבל בואו נתחיל עם זה."
-  Accept the current Google voice; progress toward a working conversation model and device integration.
-- User explicitly approved Tavily regular search after disclosure of training use:
-  "לאפשר חיפוש רגיל, בידיעה שהשאילתה נשלחת ל־Tavily".
-- Groq, OpenRouter and Tavily secrets each have an enabled version1, verified by metadata only.
+- Accepted Google voice: בסדר, אפשר להתקדם עם זה, יש יותר טובים מזה, אבל בואו נתחיל עם זה.
+- Approved Tavily: לאפשר חיפוש רגיל, בידיעה שהשאילתה נשלחת ל־Tavily
+- Latest: מאד חשוב התגובתיות - שתהיה אינדיקציה שהוא מרגיש שאני נוגע במסך, ששהוא חושב וכו׳; שהוא מאזין
+- Latest question: איך אפשר להגביר את מהירות התגובה שלו ולשפר את החוכמה והבנת ההקשרים
 
-Goal: Hebrew CoreS3 assistant with faces, readable subtitles, touch interruption, internet search
-and swappable cloud models. Announce completion on the device only after actual end-to-end validation.
+Goal: Hebrew CoreS3 assistant, faces/readable subtitles, touch interruption, actual internet search,
+swappable cloud models. Announce completion on the device only after end-to-end physical validation.
 
-## Repository and physical device
+## Current device
 
-Work checkout: work/M5StackCoresS3, branch feature/cloud-voice-relay, PR1. Base main is d8a6f97.
-M5Unified submodule is intentionally dirty from the documented upstream patch; preserve it.
-Physical device still runs stable upstream v0.14.3, with volume180 and bargein_en=1.
-User confirmed Hebrew spoken replies, faces, center-tap interruption and top-left mute.
-Custom Hebrew/search firmware was built and tested but has not been flashed. Device has no relay adapter yet.
-Original flash/NVS backups and credentials remain local, never published.
+Checkout work/M5StackCoresS3, branch feature/cloud-voice-relay, PR1. Preserve intentionally dirty
+M5Unified submodule: documented patch, no changed gitlink. COM5, CoreS3 ESP32-S3,16MBflash,8MBQuadPSRAM.
+Relay provider3 is installed. Existing boot/recovery/exttab untouched, app-only0x1a0000.
+Latest flashed app3738896bytes, SHA256deff20097d92b35fd8ebdd187c463851ae571a0ed4e4a028bca42d8bea3018c3.
+Firmware subtree b6679ad0f40dd26c1ed8389620827e5bef341843. Artifact manifest records exact image/tree.
+Volume180/bargein1/Wi-Fi preserved. Device URL/token provisioned from private NVS, CRC and all unrelated
+records verified. No actual Wi-Fi/API/device secrets in image or changed source (four-value scan passed).
+Fresh pre-relay16MBbackup in original outputs, SHA25605e81a5cadd65bc407166aed3182ee43d0ef3eb3cabeb0262cbaf3d4322ed36d.
+Never publish NVS/full flash/raw serial logs. Four4MBbackup parts verified after a failed full read.
 
-## Completed relay and review work
+User re-enabled hotspot, then confirmed Hebrew conversation worked. Later reported black display.
+Device remained alive, speaking; render task and heap remained active. USB reset restored faces,
+explicitly confirmed by user: חזרו. Boot PMIC0x03=4A/0x90=BF; cause of earlier blackout NOT proven.
+Added render frame/brightness/phase metadata every30s, no personal content. Latest loggedframes1449,
+brightness127, Speaking; touch interrupted audio, then new speech started/stopped. User visual confirmation
+of NEW Hebrew status badge and final search/interrupt still pending (they replied with a latency/context question).
+Badge: מאזין / שומע אותך / חושב / מדבר / error; touch flashes400ms. Brief VAD noise returns to ready.
+TLS dynamicRX async-header behavior implicated in prior INVALID_RECORD; per-connection staticRX selected
+in PSRAM. Playback succeeded after mitigation; do not claim exact internal cause proven.
+Completion update_notice flag is NOT armed.
 
-FastAPI v1 WAV / v2 text+sources+audio, Groq/OpenRouter/Tavily/Azure adapters, authentication,
-bounded uploads, WAV validation, silence filtering, tool limits, privacy denial, cancellation,
-timeouts and replay protection implemented. Private routing remains unapproved by default.
-42 relay/cloud-budget tests and8actual-workflow gate tests pass after the Google speech change.
-Ruff and Bandit medium/high pass; dependencies unchanged from the audited versions.
-Separate reviewer reproduced upload/replay/cancellation/deadline defects; all fixed with regressions.
-Actual Codex GitHub review found a replay-cache eviction bypass; reproduced, fixed and thread resolved.
-Codex reviewed1c57a31with no findings; all GitHub checks green on that commit.
-After any further push, an authorized owner/agent must comment @codex review. Actions-bot triggers
-cannot authenticate to Codex. Read-only gate checks bot identity, exact commit, completion and no findings.
-Copilot was tested and ineligible; CodeRabbit CLI availability unknown. Do not claim either reviewed the code.
+## Cloud and actual verification
 
-## Current cloud target and verified deployment
+Project m5stack-515405, regioneurope-west1, servicevoice-relay. Billing linked; do not relink/relogin.
+URL https://voice-relay-kdmuqgf46a-ew.a.run.app
+Server sourceb5bea5c3161c477e6f8ef6bcf1cd8aa54f67ce78 adds official USD/ILS lookup; revision00008-r6v deployed100%.
+Previous revision00007-grx/source6587163 passed verify_device.py: health200/ready200/missingsecret401,
+authenticatedsilence204, no provider calls, durablequota required.
+Chain Groq Whisper → Groq openai/gpt-oss-120b, lowreasoning/max1200 → optionalTavily → Googlehe-IL-Standard-A.
+No Azure account required. OpenRouter remains selectable; optionalparallel_tool_calls excluded otherwise
+compatible free endpoints; other reasoning models exhausted small budgets. No credits/subscriptions purchased.
+Runtime attached Google identity (no JSON key), scoped SecretAccessor/ServiceUsageConsumer/DatastoreUser.
+BuilderRunBuilder, no runtime secret/db access. Four provider/device secrets pinnedversion1; Azure empty.
+IAM invocation public for unattended ESP32; voice/cancel/notice require strong X-Device-Secret in app.
+Durable FirestoreCAS6/min,100/UTCday,3MreservedTTSchars/month,1000perturn,10minUUIDdedupe,failclosed.
+Only counters/timestamps/opaqueUUIDs stored. No refunds. Restart replay409and unchangedcounter verified.
+NativeCloudRun5ILScap verified; project5ILSalert NOT global hardcap. Other services/provider charges possible.
+Groq data retention is not zero by default. Google TTS does not log text/audio. Tavily training use disclosed
+and explicitly accepted; private_search_approved=true. Do not claim entire pipeline zero-retention.
 
-User created project M5Stack, ID m5stack-515405, replacing the earlier hey-usa target.
-New open billing account linked; billingEnabled=true verified. Do not relink billing or repeat login.
-Required APIs enabled. Region europe-west1, service voice-relay.
-Separate m5-voice-runtime and m5-voice-builder identities exist; builder has roles/run.builder.
-Runtime can access five scoped voice-relay secret containers. Device secret, Groq, OpenRouter and
-Tavily each have an enabled version1. Azure remains empty and is no longer required.
-Google TTS API is enabled; runtime has roles/serviceusage.serviceUsageConsumer.
-Google mode uses attached identity, fixed he-IL-Standard-A voice, no new keys. A live CLI-identity
-speech call returned200with validated16kHz mono PCM WAV,5.893375seconds/188632bytes.
-Runtime identity also verified using the deployed image in temporary Cloud Run job
-voice-relay-tts-check-w6bzr: valid117632-byte/3.674625-second WAV. Job deleted after success.
-This does not verify device audio.
-Groq transcribed the synthetic Google clip; Tavily returned4sources; OpenRouter key auth200.
-Three free tool-capable OpenRouter generation probes failed; confirmed429from Gemma26B.
-No model selected or paid credits purchased. Do not claim a working end-to-end relay yet.
+Actual full cloudv3 chain200,4sources,12.8566875saudio; STT402ms/LLM+search5636ms/TTS688ms.
+Device actualPOST200and playback observed. APIv3 magicM5R3+LEJSON/WAVlengths, metadata16KB/audio1.5MBbound.
+/v3/notice fixed Hebrew completion phrase only; same auth/quota. Do not request until hardware accepted.
+Freshness diagnosis: generic search returned an old Xe rate even with date instructions. Current dollar
+questions now use fixed BankofIsrael HTTPS GET endpoint, validate currency/unit/finitepositivevalue,
+aware timestamp no more than4daysold/no future, return deterministic Hebrew source/date/representativerate.
+Never let model rewrite it as a live quote. Live local check obtained20.11.2026; no keys/personal text sent.
+Weather/news/othercurrency requests force search; all LLM turns receive currentUTCdate and freshness rules.
 
-Continuation diagnosis: requiring optional parallel_tool_calls excluded otherwise compatible free
-OpenRouter endpoints; mandatory reasoning exhausted300tokens on others. Removed optional flag,
-added operator reasoning/token-budget control and actual-search enforcement (including refusal guard).
-Groq active model API lists GPT-OSS; llama3.3was404. Selected openai/gpt-oss-120b via existing Groq key,
-low reasoning/1200maxcompletiontokens. Real backend Hebrew reply and Tavily search loop succeeded,
-with4sources. No credit purchase/new account. OpenRouter remains configurable.
-Firestore(default), Standard/freeTier, created in europe-west1; runtime has roles/datastore.user.
-Durable quota module15tests plus v3binary/fixednotice/app guards implemented; current suite66tests.
-Firmware Relay backend is being implemented separately and built in publication checkout build-cores3;
-it is still not flashed. Root cloud deploy must stay IAM-private until durable full-chain probe passes.
+## Verification and remaining work
 
-Native Cloud Run monthly spend cap5ILSverified CONFIGURED. Overall project alert5ILSis NOT a hard cap.
-Cloud Build, storage and external provider charges are outside the Cloud Run service cap.
-Bootstrap rerun verified idempotence and preserved device-secret version1.
+71server/provider/quota/budget tests,8GitHubgate tests pass; portable firmware C++20/Werror tests pass.
+Ruff/Bandit passed before latest official-rate change; rerun on final source. IDF5.5.5 build and app flash
+hash verification passed. CI adds g++firmwarecore test and includes diagnostics staticchecks.
+Actual GitHub Codex reviewed e601a44 clean; final firmware/current server still needs exact-head review.
+Owner must post @codex review after finalpush; Actionsbot cannot authenticate. Gate verifies actual bot,
+exacthead, completion and nofindings. CodeRabbit unavailable/Copilotineligible; do not claim either reviewed.
+Subagent secondreview hit usagecap; don't claim completed. Root uses real GitHub independentreview.
 
-Deployed server source:aa49bb861021448c22413b64ecdba2c9904d9d7e.
-Latest revision:voice-relay-00004-52k (maps three provider secrets at version1).
-URL:https://voice-relay-kdmuqgf46a-ew.a.run.app
-Live verify_private.py passed:anonymous /health403;authenticated /health200ok:true;
-authenticated /ready503configured:false. IAM has no broad public invocation binding.
-Cloud Run uses min0/max1,CPU1,memory256Mi,HTTP concurrency4and one ASGI worker.
+1. Complete current Cloud deployment, run verify_device and official-rate live verification.
+2. Finish honest docs/artifact, commit/push finalbundle, owner@codexreview; wait actual completed review
+   and greenchecks, resolve findings and repeat as needed. Do not merge while physical checks pending.
+3. User must confirm new badge/touch and search; do not treat previous question as yes.
+4. After actual physical validation, fresh-readNVS, safely set only update_notice=1+CRC, flashNVSonly,
+   reboot and verify fixed completionphrase playback. Do not announce taskdoneearly.
+5. Context/latency: explained current turns are stateless and audio waits completeWAV. Short conversation
+   memory then streaming are useful next changes; not implemented or promised complete. No speculative model switch.
 
-Google Frontend intercepted /healthz with404 although the route existed in OpenAPI.
-Confirmed official reserved-path limitation; canonical /health and /ready aliases now work in cloud.
-Legacy z-ending routes remain only for compatibility. No insecure TLS or public-access workaround used.
-
-Browser control was unavailable; normal gcloud/API access works. No active local test server remains.
-Python clean venv:work/relay-venv. Operational helpers and current documentation are committed in the PR.
-
-## Remaining work
-
-Active task: accepted Google voice is implemented and privately deployed. Diagnose OpenRouter generation
-failures before choosing a verified free conversation model. Then implement the firmware relay adapter,
-preserving local UI/audio/cancellation. Resolve the device-to-private-Cloud-Run authentication boundary
-without publishing service-account keys. Keep firmware backups and actual hardware verification.
-Google speech final review completed on245e2e0494bd14b197361f40e4aa6055a7fe5d0dwith no findings;
-all GitHub checks passed. Evidence: PR1comment7060948956.
-
-1. Finish the Google speech change review. GitHub Codex review of aa49bb8found a P2:
-   bootstrap accepted extra scope-narrowing budget filters. Reproduced7failing assertions;
-   full normalized comparison fixes it. Follow-up review also found unchecked alert thresholds
-   and recipients; reproduced and fixed with API-default normalization.42tests pass.
-   Live bootstrap verifies the actual budget settings without overwriting them.
-   Obtain current-head review after pushing the fix and final operational documentation.
-2. Three provider keys are stored. Do not request keys in chat or create paid subscriptions.
-3. Use tools/cloud/set_provider_secrets.py in the user's interactive terminal, or Secret Manager UI.
-4. Validate real provider calls and approved model; verify full-chain privacy and cost controls.
-5. Map provider secrets and finish runtime configuration while keeping private routing fail-closed until approved.
-6. Implement the CoreS3 relay adapter, preserving faces/subtitles/touch; validate actual speech/search/interruption.
-7. Only then arm update_notice and verify the M5 speaks the completion announcement.
-
-Current staging is healthy, private and intentionally not ready for voice. Do not describe the whole device
-migration as complete, do not flash an incomplete replacement, and do not claim an alert is a global cap.
+Legacy deploy_private.ps1 resets settings/IAM to unconfiguredprivate staging. Do not rerun on live device mode.
+verify_private.py also describes old IAM-only staging; use verify_device.py now.
+CleanPythonvenv work/relay-venv; IDFpython ~/.espressif/python_env/idf5.5_py3.11_env/Scripts/python.exe.
+IDF CMake regenerates absolute local m5gfx path in dependencies.lock; normalize to third_party/m5gfx after build.

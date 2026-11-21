@@ -1,0 +1,20 @@
+{
+  "status": "flashed-booted-hardware-validation-in-progress",
+  "file": "cores3-relay-2026-11-21.bin",
+  "sha256": "deff20097d92b35fd8ebdd187c463851ae571a0ed4e4a028bca42d8bea3018c3",
+  "bytes": 3738896,
+  "board": "M5Stack CoreS3",
+  "chip": "ESP32-S3",
+  "flash_mb": 16,
+  "psram_mb": 8,
+  "psram_mode": "quad",
+  "idf": "5.5.5",
+  "firmware_tree": "b6679ad0f40dd26c1ed8389620827e5bef341843",
+  "app_offset": "0x1a0000",
+  "app_partition_bytes": 5242880,
+  "requires": "Existing verified v0.14.3 CoreS3 recovery/exttab layout; APP ONLY, not a merged image",
+  "backend": "Groq Whisper + Groq openai/gpt-oss-120b + Tavily + Google he-IL-Standard-A",
+  "credentials": "None in image; device secret and Wi-Fi preserved in private NVS",
+  "completion_announcement": "Not armed until actual hardware tests pass",
+  "validation": "Flashed and speaking; render heartbeat brightness127, touch interruption and relisten logged; user visual confirmation pending"
+}

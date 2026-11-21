@@ -29,6 +29,8 @@ enum class ConvStatus : int {
     Yielded,      // handed off to BLE / Wi-Fi audio streaming
     Reconnecting, // recovering after a transport error
     Error,        // connect attempt failed
+    Hearing,      // local VAD detected the user's voice
+    Thinking,     // turn submitted, awaiting a response
 };
 
 // A value guarded by a mutex with a lock-free version counter: the writer
@@ -165,6 +167,7 @@ public:
         // (recover_after_error). The 会話 screen shows both so a reconnect
         // storm (repeated API connection failures) is visible.
         std::atomic<ConvStatus> status{ConvStatus::Disabled};
+        std::atomic<std::uint32_t> error_until_ms{0};
         std::atomic<std::uint32_t> reconnects{0};
         // Cooperative I2S handoff flag — see audio_stream_active below.
         std::atomic<bool> yielded_i2s{false};
@@ -318,6 +321,7 @@ public:
     // barge in (stop the reply, return to listening) — the intended way to
     // interrupt now that voice input is paused for the whole assistant turn.
     std::atomic<bool> barge_in_request{false};
+    std::atomic<std::uint32_t> last_touch_ms{0};
 
     // --- Balloon (mutex + completion callback; render_task consumes) -------
 

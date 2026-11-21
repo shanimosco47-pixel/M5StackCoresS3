@@ -2,9 +2,9 @@ name: Relay checks
 on:
   push:
     branches: [main, feature/cloud-voice-relay]
-    paths: ['server/**', '.github/**', 'tools/cloud/**']
+    paths: ['server/**', '.github/**', 'tools/cloud/**', 'tools/diagnostics/**', 'firmware/stackchan-idf/**', 'firmware/stackchan-idf/tools/test_relay.cpp']
   pull_request:
-    paths: ['server/**', '.github/**', 'tools/cloud/**']
+    paths: ['server/**', '.github/**', 'tools/cloud/**', 'tools/diagnostics/**', 'firmware/stackchan-idf/**', 'firmware/stackchan-idf/tools/test_relay.cpp']
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,6 +12,18 @@ concurrency:
   group: relay-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  firmware-host:
+    name: Relay firmware parsing, VAD and cancellation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Exercise actual portable firmware core
+        run: |
+          g++ -std=c++20 -Wall -Wextra -Werror -Ifirmware/stackchan-idf/components/conversation firmware/stackchan-idf/tools/test_relay.cpp -o "$RUNNER_TEMP/test-relay"
+          "$RUNNER_TEMP/test-relay"
   test:
     name: Python ${{ matrix.python }} behavior tests
     runs-on: ubuntu-latest
@@ -46,9 +58,9 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r server/requirements.txt bandit pip-audit ruff
       - name: Python errors and unsafe constructs
-        run: python -m ruff check server tools/cloud --select E9,F63,F7,F82
+        run: python -m ruff check server tools/cloud tools/diagnostics --select E9,F63,F7,F82
       - name: Independent Bandit review of production relay
-        run: python -m bandit -r server/relay tools/cloud -ll
+        run: python -m bandit -r server/relay tools/cloud tools/diagnostics -ll
       - name: Known dependency vulnerabilities
         run: python -m pip_audit -r server/requirements.txt
       - name: PowerShell deployment script syntax

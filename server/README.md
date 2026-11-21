@@ -1,10 +1,11 @@
 # Hebrew CoreS3 cloud relay
 
-Status: implemented and deployed as a **private staging service**, not connected to the device.
-Groq/OpenRouter/Tavily key versions are stored; model selection and full-chain approval are pending.
-Google Standard Hebrew TTS replaces the need for an Azure account. Readiness remains not configured.
-Automated provider tests use controlled HTTP responses; a separate real Google synthesis returned valid PCM WAV.
-The existing firmware and experimental binary remain unchanged.
+Status: deployed and connected to the flashed CoreS3 Relay client. Hardware playback was observed;
+final user display/search/interruption confirmation remains pending.
+Current chain: Groq Whisper → Groq GPT-OSS120B → optional Tavily → Google Standard Hebrew TTS.
+Real cloud speech/search/audio and post-restart replay denial passed. The user explicitly approved
+normal Tavily search after query-training disclosure. No credits or new subscriptions were purchased.
+Direct device requests use application authentication and mandatory durable Firestore admission.
 
 ## Run and test
 
@@ -50,6 +51,12 @@ Successful JSON:
 ```
 
 `POST /v1/turn` uses the same request and returns only `audio/wav`.
+`POST /v3/turn` uses the same request and returns `application/vnd.m5stack.turn+wav`:
+12bytes (`M5R3`, little-endian uint32 metadata length, uint32 WAV length), UTF-8 JSON metadata,
+then raw WAV. Metadata has version3/request_id/profile/transcript/answer/sources/timings, no audio
+base64 field. JSON is capped at16384bytes, audio at1500000bytes. This avoids base64 amplification
+on8MBPSRAM. `POST /v3/notice` returns the same envelope for a fixed Hebrew completion sentence;
+it requires authentication and admission and does not call STT/LLM or accept arbitrary spoken text.
 `DELETE /v2/turn/{request_id}` with the device secret cancels an active upload/provider turn.
 A cancelled POST returns 409. Cancellation cannot undo charges already incurred at a provider.
 Requests and outputs use `Cache-Control: no-store`.
@@ -63,6 +70,8 @@ also identify the stage without exposing provider bodies.
 ## Provider configuration and privacy
 
 - Groq Whisper large-v3: Hebrew multipart transcription.
+- `LLM_PROVIDER=groq`: existing Groq key, `LLM_MODEL=openai/gpt-oss-120b`,
+  `LLM_REASONING_EFFORT=low`, `LLM_MAX_TOKENS=1200`. Tested Hebrew and real search tool loop.
 - OpenRouter: operator-selected `LLM_MODEL`, constrained by `ALLOWED_MODELS`.
   Private requests send `data_collection: deny`, optionally require ZDR (default true), and disallow fallback.
 - Tavily: optional `TAVILY_API_KEY`; one basic search maximum per turn, at most four validated source URLs.
@@ -78,7 +87,17 @@ also identify the stage without exposing provider bodies.
   Google mode does not require any Azure settings. Unknown TTS modes fail readiness.
 
 Private mode fails closed until `PRIVATE_PROVIDERS_APPROVED=true`. This flag records an operator
-decision after reviewing **all four** providers; it does not itself establish their contractual terms.
+decision after reviewing the selected STT/LLM/TTS chain; it does not establish contractual terms.
+`PRIVATE_SEARCH_APPROVED` separately gates Tavily for private-profile requests. It defaultsfalse;
+the user explicitly accepted normal search after being told queries may be used to improve models.
+No claim of whole-chain zero retention: Groq documents limited reliability/abuse retention unless
+account ZDR is enabled, and OpenRouter REQUIRE_ZDR applies only to OpenRouter provider routing.
+Explicit search and changing weather/news/currency requests require a real tool result; refusals suppress tools.
+Current USD/ILS questions use the fixed official Bank of Israel API directly, with timestamp/unit/value
+validation and deterministic spoken source/publication date. Old (>4days), future, malformed or unavailable
+quotes produce an explicit unavailable response, never an LLM-generated replacement quote. No API key or
+personal query is sent to this endpoint. Historical requests continue through ordinary search.
+Official API contract: https://www.boi.org.il/qawebsite/
 Playground has no server personal memory/persona/documents. It still transmits the spoken utterance;
 it is not an automatic detector or remover of sensitive speech.
 No transcript, answer, API key or raw provider error is logged by the relay. Only request IDs,
@@ -90,6 +109,12 @@ One turn at a time per process. Upload plus all providers share a 45-second dead
 Input RMS filtering reduces silence hallucinations but is not full voice activity detection.
 Replay prevention (10 minutes), request counters (default 6/minute, 100/day), and admission locks
 are **in memory**: they reset on restart and do not coordinate replicas.
+Device deployment additionally requires `DURABLE_QUOTAS_REQUIRED=true`. Firestore(default), document
+voice_relay_limits/device, is the authority:6/minute,100/UTCday,3MreservedTTSchars/month,1000perturn,
+10minute UUID dedupe. Conditional create/update-time preconditions reject races; exhausted retries,
+unavailable metadata/Firestore and malformed state fail closed before providers. There are no refunds.
+Only counters/timestamps/opaque UUIDs are stored. Runtime needs roles/datastore.user in the dedicated
+project. This bounds application TTS requests, not all spending or other actors' API usage.
 When the bounded replay cache fills, new IDs receive429until entries expire; unexpired IDs are never evicted.
 This is defense in depth, **not a hard spending cap**. Before public production deployment,
 configure durable distributed limits or independently enforced provider/spend caps.
@@ -98,8 +123,8 @@ HTTP concurrency must exceed one so cancellation and health requests can reach a
 the application still admits only one voice turn. These settings alone do not cap costs.
 Build, registry, network, logs and other cloud resources can also incur charges.
 
-Current turns are stateless. Conversation history, streaming, persistent memory, actions and the
-CoreS3 relay adapter are subsequent work; there is no claim that the device already calls this server.
+Current turns are stateless. Conversation history, streaming, persistent memory and actions remain
+subsequent work. The CoreS3 Relay adapter is now flashed; validate actual hardware behavior separately.
 Base64 WAV is bounded to 1.5MB of audio and adds about one third in JSON transfer size.
 Future streaming can reduce latency and memory use without replacing the local UI.
 

@@ -786,6 +786,7 @@ esp_err_t handle_provider_post(httpd_req_t* req)
     config::Provider p = config::Provider::OpenAi;
     if (v == static_cast<int>(config::Provider::Gemini)) p = config::Provider::Gemini;
     else if (v == static_cast<int>(config::Provider::XiaoZhi)) p = config::Provider::XiaoZhi;
+    else if (v == static_cast<int>(config::Provider::Relay)) p = config::Provider::Relay;
     xSemaphoreTake(g_mutex, portMAX_DELAY);
     g_staging.set_num("provider", static_cast<std::uint32_t>(p));
     xSemaphoreGive(g_mutex);
