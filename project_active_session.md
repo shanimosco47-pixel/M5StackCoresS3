@@ -30,7 +30,7 @@ Original flash/NVS backups and credentials remain local, never published.
 FastAPI v1 WAV / v2 text+sources+audio, Groq/OpenRouter/Tavily/Azure adapters, authentication,
 bounded uploads, WAV validation, silence filtering, tool limits, privacy denial, cancellation,
 timeouts and replay protection implemented. Private routing remains unapproved by default.
-38 relay tests and8actual-workflow gate tests pass after the Google speech change (recheck before commit).
+41 relay/cloud-budget tests and8actual-workflow gate tests pass after the Google speech change.
 Ruff and Bandit medium/high pass; dependencies unchanged from the audited versions.
 Separate reviewer reproduced upload/replay/cancellation/deadline defects; all fixed with regressions.
 Actual Codex GitHub review found a replay-cache eviction bypass; reproduced, fixed and thread resolved.
@@ -50,14 +50,19 @@ Tavily each have an enabled version1. Azure remains empty and is no longer requi
 Google TTS API is enabled; runtime has roles/serviceusage.serviceUsageConsumer.
 Google mode uses attached identity, fixed he-IL-Standard-A voice, no new keys. A live CLI-identity
 speech call returned200with validated16kHz mono PCM WAV,5.893375seconds/188632bytes.
-This does not yet verify the Cloud Run runtime identity or device audio.
+Runtime identity also verified using the deployed image in temporary Cloud Run job
+voice-relay-tts-check-w6bzr: valid117632-byte/3.674625-second WAV. Job deleted after success.
+This does not verify device audio.
+Groq transcribed the synthetic Google clip; Tavily returned4sources; OpenRouter key auth200.
+Three free tool-capable OpenRouter generation probes failed; confirmed429from Gemma26B.
+No model selected or paid credits purchased. Do not claim a working end-to-end relay yet.
 
 Native Cloud Run monthly spend cap5ILSverified CONFIGURED. Overall project alert5ILSis NOT a hard cap.
 Cloud Build, storage and external provider charges are outside the Cloud Run service cap.
 Bootstrap rerun verified idempotence and preserved device-secret version1.
 
-Deployed source:1c57a31dc7bc42f90a5677139238178c2bd1a96b.
-Latest verified revision:voice-relay-00002-vpx.
+Deployed server source:aa49bb861021448c22413b64ecdba2c9904d9d7e.
+Latest revision:voice-relay-00004-52k (maps three provider secrets at version1).
 URL:https://voice-relay-kdmuqgf46a-ew.a.run.app
 Live verify_private.py passed:anonymous /health403;authenticated /health200ok:true;
 authenticated /ready503configured:false. IAM has no broad public invocation binding.
@@ -77,7 +82,10 @@ Cloud Run identity (no new user key/account). Verify pricing, bounded authentica
 test failures before implementation, live Hebrew audio, private deployment and exact-head GitHub review.
 Preserve Azure compatibility, the physical firmware, fail-closed private routing and existing cost controls.
 
-1. Finish any current documentation-only push/review and save exact verification links in PR1.
+1. Finish the Google speech change review. GitHub Codex review of aa49bb8found a P2:
+   bootstrap accepted extra scope-narrowing budget filters. Reproduced7failing assertions;
+   full normalized comparison fixes it,41tests pass, and live bootstrap verifies both budgets.
+   Obtain current-head review after pushing the fix and final operational documentation.
 2. Three provider keys are stored. Do not request keys in chat or create paid subscriptions.
 3. Use tools/cloud/set_provider_secrets.py in the user's interactive terminal, or Secret Manager UI.
 4. Validate real provider calls and approved model; verify full-chain privacy and cost controls.

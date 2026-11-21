@@ -37,7 +37,11 @@ Azure signup required an account upgrade; user approved Google Cloud TTS instead
 Google support uses attached runtime identity, fixed he-IL-Standard-A and bounded PCM16 WAV.
 Google API enabled and runtime granted serviceusage.serviceUsageConsumer; no JSON key created.
 A live CLI-identity synthesis returned200and valid188632-byte/5.893375-second Hebrew PCM WAV.
-Runtime identity and hardware playback still need verification; do not claim they passed.
+Runtime identity subsequently passed via the same deployed image in a temporary Cloud Run job:
+117632-byte/3.674625-second valid WAV. Job deleted. Hardware playback is still unverified.
+Google server source aa49bb8deployed; revision00004-52kmaps three provider secrets at version1.
+Groq/Tavily synthetic/public probes passed and OpenRouter key auth200, but three free-model
+generation attempts failed (Gemma26B429). No final model chosen or credits purchased.
 Code is on feature/cloud-voice-relay; GitHub checks and exact-head Copilot review must be observed before
 calling the GitHub review integration operational. The original Copilot gate failed eligibility;
 the existing Codex app actually reviewed the PR and found a replay-cache issue, fixed with regression.
@@ -45,7 +49,9 @@ Actions-bot comments cannot authenticate to Codex: after pushing, the authorized
 @codex review; the read-only gate then verifies current-head completion and no unresolved findings.
 The first staging deployment exposed Google Frontend's reserved /healthz path. Canonical aliases /health
 and /ready were added with a failing-then-passing regression test; use those for Cloud Run verification.
-Current suite:38relay tests and8review-gate tests. See CLOUD_DEPLOYMENT.md and PR1for live revision checks.
+Current suite:41relay/cloud-budget tests and8review-gate tests. GitHub review of aa49bb8found
+an additional budget-filter narrowing defect; reproduced and fixed by full normalized comparison.
+See CLOUD_DEPLOYMENT.md and PR1for live revision checks and current-head review results.
 No firmware deployment occurred, and the device has no relay adapter yet.
 
 ## Sensitive material deliberately omitted

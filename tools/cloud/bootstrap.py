@@ -16,6 +16,14 @@ import urllib.parse
 import urllib.request
 
 
+def filters_match(actual, expected):
+    # Empty filters and the documented credit-policy default do not narrow scope.
+    # Compare the entire filter, so a same-named budget cannot hide extra restrictions.
+    defaults = {'creditTypesTreatment': 'INCLUDE_ALL_CREDITS', 'services': [],
+                'subaccounts': [], 'labels': {}, 'creditTypes': [], 'resourceAncestors': []}
+    return defaults | actual == defaults | expected
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', required=True)
@@ -109,9 +117,8 @@ def main():
         if existing:
             current_amount = existing.get('amount', {}).get('specifiedAmount', {})
             actual = Decimal(current_amount.get('units', '0')) + Decimal(current_amount.get('nanos', 0)) / 1_000_000_000
-            filters_match = all(existing.get('budgetFilter', {}).get(k) == v
-                                for k, v in payload['budgetFilter'].items())
-            if not filters_match or actual != args.cap or current_amount.get('currencyCode') != currency:
+            scope_matches = filters_match(existing.get('budgetFilter', {}), payload['budgetFilter'])
+            if not scope_matches or actual != args.cap or current_amount.get('currencyCode') != currency:
                 raise SystemExit('Existing named budget differs; inspect it rather than overwrite it')
             return existing
         return api('POST', base, payload)

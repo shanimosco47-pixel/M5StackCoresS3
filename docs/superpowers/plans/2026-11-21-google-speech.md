@@ -21,7 +21,9 @@ tools/cloud/deploy_private.ps1; current operational documentation and active ses
 - [x] Implement and pass provider/audio/error tests; retain the complete existing suite.
 - [x] Produce an actual Hebrew PCM WAV through Google, using CLI credentials in process memory.
 - [x] Independent read-only code review; no actionable findings.
-- [ ] Verify private deployment, attached-identity synthesis and exact-head GitHub review.
+- [x] Verify private deployment and attached-identity synthesis using the deployed image.
+- [x] Reproduce and fix review finding: reject narrowed budget filters, retain API defaults.
+- [ ] Finish exact-head GitHub review after the budget regression fix.
 
 Hardware adapter and full conversation/search are subsequent tasks. Do not announce completion
 on the M5 until its actual end-to-end behavior has been verified.
