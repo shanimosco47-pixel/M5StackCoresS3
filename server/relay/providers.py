@@ -1,11 +1,12 @@
 """Bounded, verified HTTPS calls. Never log upstream bodies, keys or transcripts."""
+import base64
 import json
 from urllib.parse import urlsplit
 from xml.sax.saxutils import escape
 
 import httpx
 
-from .audio import MAX_OUTPUT_BYTES
+from .audio import MAX_OUTPUT_BYTES, pcm_frames
 from .config import Settings
 from .service import Answer, UpstreamError
 
@@ -41,8 +42,8 @@ class HTTPProviders:
             raise UpstreamError(stage) from failure
 
     @staticmethod
-    async def _read(client, stage, url, limit, **kwargs):
-        async with client.stream('POST', url, follow_redirects=False, **kwargs) as response:
+    async def _read(client, stage, url, limit, method='POST', **kwargs):
+        async with client.stream(method, url, follow_redirects=False, **kwargs) as response:
             if response.status_code != 200:
                 raise UpstreamError(stage)
             body = bytearray()
@@ -174,6 +175,8 @@ class HTTPProviders:
     async def synthesize(self, text: str) -> bytes:
         if not self.settings.ready:
             raise UpstreamError('tts')
+        if self.settings.tts_provider == 'google':
+            return await self._google_speech(text)
         ssml = ("<speak version='1.0' xml:lang='he-IL'>"
                 f"<voice name='{self.settings.voice}'>{escape(text)}</voice></speak>")
         return await self._post(
@@ -184,3 +187,42 @@ class HTTPProviders:
                      'X-Microsoft-OutputFormat': 'riff-16khz-16bit-mono-pcm',
                      'User-Agent': 'cores3-voice-relay'}, content=ssml.encode('utf-8'),
         )
+
+    async def _google_speech(self, text: str) -> bytes:
+        # Fixed metadata endpoint: only the attached Cloud Run identity, never a key file.
+        # Fetch a fresh short-lived token per turn; no blocking SDK refresh in the event loop.
+        async def request(client):
+            identity = await self._read(
+                client, 'tts',
+                'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+                16384, method='GET', headers={'Metadata-Flavor': 'Google'}, timeout=3,
+            )
+            token = self._json(identity, 'tts').get('access_token')
+            if (not isinstance(token, str) or not token or len(token) > 8192
+                    or any(ord(char) < 33 or ord(char) > 126 for char in token)):
+                raise UpstreamError('tts')
+            body = await self._read(
+                client, 'tts', 'https://texttospeech.googleapis.com/v1/text:synthesize',
+                4 * ((MAX_OUTPUT_BYTES + 2) // 3) + 1024,
+                headers={'Authorization': 'Bearer ' + token,
+                         'x-goog-user-project': self.settings.google_project},
+                json={'input': {'text': text},
+                      'voice': {'languageCode': 'he-IL', 'name': 'he-IL-Standard-A'},
+                      'audioConfig': {'audioEncoding': 'LINEAR16', 'sampleRateHertz': 16000}},
+            )
+            encoded = self._json(body, 'tts').get('audioContent')
+            if not isinstance(encoded, str):
+                raise UpstreamError('tts')
+            audio = base64.b64decode(encoded, validate=True)
+            if len(audio) > MAX_OUTPUT_BYTES:
+                raise UpstreamError('tts')
+            pcm_frames(audio, max_seconds=47)
+            return audio
+
+        try:
+            if self.client is not None:
+                return await request(self.client)
+            async with httpx.AsyncClient(timeout=25, follow_redirects=False, trust_env=False) as client:
+                return await request(client)
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as failure:
+            raise UpstreamError('tts') from failure

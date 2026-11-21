@@ -32,7 +32,12 @@ The user subsequently created project M5Stack, IDm5stack-515405, and a new open 
 The new project was linked and required APIs enabled. Private Cloud Run staging was deployed in europe-west1.
 Separate runtime/builder identities and five secret containers exist; only a generated device secret has a value.
 Native Cloud Run spend cap5ILS/month is verified CONFIGURED; total project alert5ILSis not a hard overall cap.
-User explicitly deferred provider keys until later. No live new-provider speech calls have run.
+Update: user has now stored Groq/OpenRouter/Tavily keys (enabled version1metadata verified).
+Azure signup required an account upgrade; user approved Google Cloud TTS instead, then said GO.
+Google support uses attached runtime identity, fixed he-IL-Standard-A and bounded PCM16 WAV.
+Google API enabled and runtime granted serviceusage.serviceUsageConsumer; no JSON key created.
+A live CLI-identity synthesis returned200and valid188632-byte/5.893375-second Hebrew PCM WAV.
+Runtime identity and hardware playback still need verification; do not claim they passed.
 Code is on feature/cloud-voice-relay; GitHub checks and exact-head Copilot review must be observed before
 calling the GitHub review integration operational. The original Copilot gate failed eligibility;
 the existing Codex app actually reviewed the PR and found a replay-cache issue, fixed with regression.
@@ -40,7 +45,7 @@ Actions-bot comments cannot authenticate to Codex: after pushing, the authorized
 @codex review; the read-only gate then verifies current-head completion and no unresolved findings.
 The first staging deployment exposed Google Frontend's reserved /healthz path. Canonical aliases /health
 and /ready were added with a failing-then-passing regression test; use those for Cloud Run verification.
-Current suite:34relay tests and8review-gate tests. See CLOUD_DEPLOYMENT.md and PR1for live revision checks.
+Current suite:38relay tests and8review-gate tests. See CLOUD_DEPLOYMENT.md and PR1for live revision checks.
 No firmware deployment occurred, and the device has no relay adapter yet.
 
 ## Sensitive material deliberately omitted

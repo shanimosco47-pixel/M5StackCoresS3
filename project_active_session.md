@@ -10,7 +10,8 @@ Last consolidated: 2026-11-21. Current state supersedes older session entries in
 - תשמור את כל העבודה והתיעוד כאן — https://github.com/shanimosco47-pixel/M5StackCoresS3
 - make sure there is a working github indipendent review working
 - כשתסיים תשמיע צליל ב M5 או יותר טוב - שיגיד שהוא סיים את העדכון
-- Latest provider-key decision: אפתח מפתחות יותר מאוחר
+- Latest instructions: "זה קריטי או שאפשר בלי?" (Azure), approved Google Cloud TTS alternative with "מצויין" and "GO".
+- Groq, OpenRouter and Tavily secrets each have an enabled version1, verified by metadata only.
 
 Goal: Hebrew CoreS3 assistant with faces, readable subtitles, touch interruption, internet search
 and swappable cloud models. Announce completion on the device only after actual end-to-end validation.
@@ -29,7 +30,8 @@ Original flash/NVS backups and credentials remain local, never published.
 FastAPI v1 WAV / v2 text+sources+audio, Groq/OpenRouter/Tavily/Azure adapters, authentication,
 bounded uploads, WAV validation, silence filtering, tool limits, privacy denial, cancellation,
 timeouts and replay protection implemented. Private routing remains unapproved by default.
-34 relay tests and8actual-workflow gate tests pass. Ruff, Bandit medium/high and full pip-audit pass.
+38 relay tests and8actual-workflow gate tests pass after the Google speech change (recheck before commit).
+Ruff and Bandit medium/high pass; dependencies unchanged from the audited versions.
 Separate reviewer reproduced upload/replay/cancellation/deadline defects; all fixed with regressions.
 Actual Codex GitHub review found a replay-cache eviction bypass; reproduced, fixed and thread resolved.
 Codex reviewed1c57a31with no findings; all GitHub checks green on that commit.
@@ -43,8 +45,12 @@ User created project M5Stack, ID m5stack-515405, replacing the earlier hey-usa t
 New open billing account linked; billingEnabled=true verified. Do not relink billing or repeat login.
 Required APIs enabled. Region europe-west1, service voice-relay.
 Separate m5-voice-runtime and m5-voice-builder identities exist; builder has roles/run.builder.
-Runtime can access only five voice-relay secret containers. Only device-secret version1has a value.
-Provider containers groq/openrouter/azure/tavily remain empty by the user's explicit deferral.
+Runtime can access five scoped voice-relay secret containers. Device secret, Groq, OpenRouter and
+Tavily each have an enabled version1. Azure remains empty and is no longer required.
+Google TTS API is enabled; runtime has roles/serviceusage.serviceUsageConsumer.
+Google mode uses attached identity, fixed he-IL-Standard-A voice, no new keys. A live CLI-identity
+speech call returned200with validated16kHz mono PCM WAV,5.893375seconds/188632bytes.
+This does not yet verify the Cloud Run runtime identity or device audio.
 
 Native Cloud Run monthly spend cap5ILSverified CONFIGURED. Overall project alert5ILSis NOT a hard cap.
 Cloud Build, storage and external provider charges are outside the Cloud Run service cap.
@@ -66,10 +72,15 @@ Python clean venv:work/relay-venv. Operational helpers and current documentation
 
 ## Remaining work
 
+Active task: replace required Azure Speech with Google Cloud Standard Hebrew TTS using the existing
+Cloud Run identity (no new user key/account). Verify pricing, bounded authenticated provider calls,
+test failures before implementation, live Hebrew audio, private deployment and exact-head GitHub review.
+Preserve Azure compatibility, the physical firmware, fail-closed private routing and existing cost controls.
+
 1. Finish any current documentation-only push/review and save exact verification links in PR1.
-2. User will create provider keys later. Do not request keys in chat or create paid subscriptions.
+2. Three provider keys are stored. Do not request keys in chat or create paid subscriptions.
 3. Use tools/cloud/set_provider_secrets.py in the user's interactive terminal, or Secret Manager UI.
-4. Validate real provider calls, approved model and Azure region; verify full-chain privacy and cost controls.
+4. Validate real provider calls and approved model; verify full-chain privacy and cost controls.
 5. Map provider secrets and finish runtime configuration while keeping private routing fail-closed until approved.
 6. Implement the CoreS3 relay adapter, preserving faces/subtitles/touch; validate actual speech/search/interruption.
 7. Only then arm update_notice and verify the M5 speaks the completion announcement.

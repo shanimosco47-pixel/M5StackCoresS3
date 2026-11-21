@@ -1,3 +1,4 @@
+import base64
 import json
 import unittest
 
@@ -117,6 +118,65 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
         providers = await self.client_for(lambda request: httpx.Response(200, content=b'x' * 100000))
         with self.assertRaises(UpstreamError):
             await providers.transcribe(wav())
+
+    async def test_google_speech_uses_runtime_identity_and_returns_16khz_wav_without_azure(self):
+        calls = []
+        def handler(request):
+            calls.append(request)
+            if request.url.host == 'metadata.google.internal':
+                self.assertEqual(request.method, 'GET')
+                self.assertEqual(request.headers['Metadata-Flavor'], 'Google')
+                return httpx.Response(200, json={'access_token': 'runtime-token'})
+            self.assertEqual(str(request.url), 'https://texttospeech.googleapis.com/v1/text:synthesize')
+            self.assertEqual(request.headers['authorization'], 'Bearer runtime-token')
+            self.assertEqual(request.headers['x-goog-user-project'], 'm5stack-515405')
+            body = json.loads(request.content)
+            self.assertEqual(body['input'], {'text': '<test> & שלום'})
+            self.assertEqual(body['voice'], {'languageCode': 'he-IL', 'name': 'he-IL-Standard-A'})
+            self.assertEqual(body['audioConfig'], {'audioEncoding': 'LINEAR16', 'sampleRateHertz': 16000})
+            return httpx.Response(200, json={'audioContent': base64.b64encode(wav()).decode()})
+        providers = await self.client_for(handler, tts_provider='google', google_project='m5stack-515405',
+                                          azure_key='', azure_region='')
+        self.assertTrue(providers.settings.ready)
+        self.assertEqual(await providers.synthesize('<test> & שלום'), wav())
+        self.assertEqual(len(calls), 2)
+
+    async def test_google_rejects_invalid_audio_and_sanitizes_metadata_failures(self):
+        for payload in ({}, {'audioContent': '!bad!'}, {'audioContent': base64.b64encode(b'not wav').decode()},
+                        {'audioContent': base64.b64encode(wav(rate=8000)).decode()}):
+            def handler(request):
+                if request.url.host == 'metadata.google.internal':
+                    return httpx.Response(200, json={'access_token': 'runtime-token'})
+                return httpx.Response(200, json=payload)
+            providers = await self.client_for(handler, tts_provider='google', google_project='m5stack-515405')
+            with self.assertRaises(UpstreamError) as caught:
+                await providers.synthesize('שלום')
+            self.assertEqual(caught.exception.stage, 'tts')
+        for payload in ({}, {'access_token': ''}, {'access_token': 'bad\r\nheader'}):
+            providers = await self.client_for(lambda request: httpx.Response(200, json=payload),
+                                              tts_provider='google', google_project='m5stack-515405')
+            with self.assertRaises(UpstreamError):
+                await providers.synthesize('שלום')
+
+    async def test_unknown_tts_provider_or_missing_google_project_is_not_ready(self):
+        for changes in ({'tts_provider': 'unknown'}, {'tts_provider': 'google', 'google_project': ''}):
+            providers = await self.client_for(lambda request: self.fail('invalid config made network call'), **changes)
+            self.assertFalse(providers.settings.ready)
+            with self.assertRaises(UpstreamError):
+                await providers.synthesize('שלום')
+
+    async def test_google_metadata_redirect_and_oversized_response_never_reach_synthesis(self):
+        for response in (httpx.Response(307, headers={'location': 'https://evil.example/'}),
+                         httpx.Response(200, content=b'x' * 16385)):
+            calls = []
+            def handler(request):
+                calls.append(request)
+                self.assertEqual(request.url.host, 'metadata.google.internal')
+                return response
+            providers = await self.client_for(handler, tts_provider='google', google_project='m5stack-515405')
+            with self.assertRaises(UpstreamError):
+                await providers.synthesize('שלום')
+            self.assertEqual(len(calls), 1)
 
     async def test_unapproved_private_model_never_reaches_provider(self):
         def handler(request):

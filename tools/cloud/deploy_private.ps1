@@ -19,6 +19,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the source commit.' }
 $m5CapArgument = $CloudRunMonthlyCap.ToString([Globalization.CultureInfo]::InvariantCulture)
 & python (Join-Path $PSScriptRoot 'bootstrap.py') "--project=$ProjectId" "--billing-account=$BillingAccountId" "--cap=$m5CapArgument"
 if ($LASTEXITCODE -ne 0) { throw 'Cost-control verification failed; deployment was not started.' }
+& gcloud services enable texttospeech.googleapis.com "--project=$ProjectId" --quiet
+if ($LASTEXITCODE -ne 0) { throw 'Could not enable Google Text-to-Speech.' }
+& gcloud projects add-iam-policy-binding $ProjectId "--project=$ProjectId" `
+    "--member=serviceAccount:m5-voice-runtime@$ProjectId.iam.gserviceaccount.com" `
+    '--role=roles/serviceusage.serviceUsageConsumer' '--condition=None' --quiet '--format=none'
+if ($LASTEXITCODE -ne 0) { throw 'Could not configure runtime API usage permission.' }
 # Source upload uses server/.gcloudignore: no credentials, tests, local files or firmware images.
 $m5DeployArgs = @(
     'run', 'deploy', 'voice-relay',
@@ -28,7 +34,7 @@ $m5DeployArgs = @(
     '--no-allow-unauthenticated', '--min-instances=0', '--max-instances=1',
     '--concurrency=4', '--cpu=1', '--memory=256Mi', '--timeout=60',
     '--set-secrets=DEVICE_SECRET=voice-relay-device-secret:latest',
-    '--set-env-vars=PRIVATE_PROVIDERS_APPROVED=false,REQUESTS_PER_MINUTE=6,REQUESTS_PER_DAY=100',
+    "--set-env-vars=PRIVATE_PROVIDERS_APPROVED=false,REQUESTS_PER_MINUTE=6,REQUESTS_PER_DAY=100,TTS_PROVIDER=google,GOOGLE_CLOUD_PROJECT=$ProjectId",
     "--labels=source-commit=$m5SourceCommit", '--quiet',
     '--format=value(status.url)'
 )

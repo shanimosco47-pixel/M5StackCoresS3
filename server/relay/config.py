@@ -17,16 +17,24 @@ class Settings:
     private_approved: bool = False
     require_zdr: bool = True
     voice: str = 'he-IL-HilaNeural'
+    tts_provider: str = 'azure'
+    google_project: str = ''
     requests_per_minute: int = 6
     requests_per_day: int = 100
     turn_timeout: float = 45
 
     @property
     def ready(self):
+        tts_ready = (
+            self.tts_provider == 'google'
+            and bool(re.fullmatch(r'[a-z][a-z0-9-]{4,28}[a-z0-9]', self.google_project))
+        ) or (
+            self.tts_provider == 'azure' and bool(self.azure_key)
+            and bool(re.fullmatch(r'[a-z][a-z0-9]{1,30}', self.azure_region))
+            and bool(re.fullmatch(r'he-IL-[A-Za-z0-9]+', self.voice))
+        )
         return (len(self.device_secret) >= 32
-                and bool(self.groq_key and self.openrouter_key and self.azure_key)
-                and bool(re.fullmatch(r'[a-z][a-z0-9]{1,30}', self.azure_region))
-                and bool(re.fullmatch(r'he-IL-[A-Za-z0-9]+', self.voice))
+                and bool(self.groq_key and self.openrouter_key) and tts_ready
                 and self.model in self.allowed_models
                 and 0 < self.requests_per_minute <= 1000
                 and 0 < self.requests_per_day <= 10000
@@ -46,6 +54,8 @@ class Settings:
             private_approved=os.getenv('PRIVATE_PROVIDERS_APPROVED', '').lower() == 'true',
             require_zdr=os.getenv('REQUIRE_ZDR', 'true').lower() == 'true',
             voice=os.getenv('TTS_VOICE', 'he-IL-HilaNeural'),
+            tts_provider=os.getenv('TTS_PROVIDER', 'azure'),
+            google_project=os.getenv('GOOGLE_CLOUD_PROJECT', ''),
             requests_per_minute=int(os.getenv('REQUESTS_PER_MINUTE', '6')),
             requests_per_day=int(os.getenv('REQUESTS_PER_DAY', '100')),
             turn_timeout=float(os.getenv('TURN_TIMEOUT_SECONDS', '45')),

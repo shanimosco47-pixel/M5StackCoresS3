@@ -1,8 +1,9 @@
 # Hebrew CoreS3 cloud relay
 
 Status: implemented and deployed as a **private staging service**, not connected to the device.
-Provider keys are intentionally pending; authenticated readiness reports not configured.
-Provider tests use controlled HTTP responses, not live billable services.
+Groq/OpenRouter/Tavily key versions are stored; model selection and full-chain approval are pending.
+Google Standard Hebrew TTS replaces the need for an Azure account. Readiness remains not configured.
+Automated provider tests use controlled HTTP responses; a separate real Google synthesis returned valid PCM WAV.
 The existing firmware and experimental binary remain unchanged.
 
 ## Run and test
@@ -66,7 +67,15 @@ also identify the stage without exposing provider bodies.
   Private requests send `data_collection: deny`, optionally require ZDR (default true), and disallow fallback.
 - Tavily: optional `TAVILY_API_KEY`; one basic search maximum per turn, at most four validated source URLs.
   No search tool is advertised without its key. Search failure produces an error, not invented current facts.
-- Azure Speech: Hebrew Hila voice, escaped SSML and 16kHz mono PCM WAV.
+- Google Speech (`TTS_PROVIDER=google`): fixed `he-IL-Standard-A`, 16kHz mono PCM WAV.
+  `GOOGLE_CLOUD_PROJECT` names the quota project. Authentication uses a fresh short-lived access
+  token from the attached Cloud Run identity's fixed metadata endpoint, asynchronously and without
+  key files. Metadata timeout is 3 seconds, responses are bounded and redirects are refused.
+  Enable `texttospeech.googleapis.com` and grant runtime `roles/serviceusage.serviceUsageConsumer`.
+  This mode requires Cloud Run metadata; it does not silently use local CLI credentials.
+- Optional legacy Azure (`TTS_PROVIDER=azure`, the code default for existing deployments):
+  `AZURE_SPEECH_KEY`, `AZURE_REGION` and `TTS_VOICE`; Hebrew Hila, escaped SSML, PCM WAV.
+  Google mode does not require any Azure settings. Unknown TTS modes fail readiness.
 
 Private mode fails closed until `PRIVATE_PROVIDERS_APPROVED=true`. This flag records an operator
 decision after reviewing **all four** providers; it does not itself establish their contractual terms.
@@ -100,6 +109,9 @@ Future streaming can reduce latency and memory use without replacing the local U
 - https://openrouter.ai/docs/guides/routing/provider-selection
 - https://docs.tavily.com/documentation/api-reference/endpoint/search
 - https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech
+- https://docs.cloud.google.com/text-to-speech/docs/reference/rest/v1/text/synthesize
+- https://docs.cloud.google.com/docs/authentication/rest
+- https://cloud.google.com/text-to-speech/pricing
 - https://docs.cloud.google.com/run/docs/configuring/billing-settings
 
 Recheck model availability, provider terms and free quotas using the actual accounts before activation.

@@ -14,6 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', required=True)
     parser.add_argument('--region', default='europe-west1')
+    parser.add_argument('--configured', action='store_true', help='Expect configured staging, not missing settings')
     args = parser.parse_args()
     if not re.fullmatch(r'[a-z][a-z0-9-]{4,28}[a-z0-9]', args.project):
         parser.error('invalid project ID')
@@ -58,7 +59,8 @@ def main():
     public = probe('/health', False)
     health = probe('/health', True)
     ready = probe('/ready', True)
-    if public[0] not in (401, 403, 404) or health != (200, {'ok': True}) or ready != (503, {'configured': False}):
+    expected_ready = (200, {'configured': True}) if args.configured else (503, {'configured': False})
+    if public[0] not in (401, 403, 404) or health != (200, {'ok': True}) or ready != expected_ready:
         raise SystemExit(json.dumps({'verification': 'failed', 'anonymous_status': public[0],
                                      'health': health, 'readiness': ready}))
     print(json.dumps({'verification': 'passed', 'url': url,
