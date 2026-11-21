@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.16)
+project(avatar_subtitle_test LANGUAGES C CXX)
+set(AVATAR "${CMAKE_CURRENT_LIST_DIR}/../..")
+add_executable(test_subtitle test_subtitle.cpp "${AVATAR}/subtitle_text.cpp"
+    "${AVATAR}/third_party/sheenbidi/Source/SheenBidi.c")
+target_include_directories(test_subtitle PRIVATE "${AVATAR}" "${AVATAR}/third_party/sheenbidi/Headers")
+target_compile_definitions(test_subtitle PRIVATE SB_CONFIG_UNITY)
+target_compile_features(test_subtitle PRIVATE cxx_std_20)
+if(MSVC)
+    target_compile_options(test_subtitle PRIVATE /utf-8)
+endif()
+enable_testing()
+add_test(NAME subtitle_bidi COMMAND test_subtitle)

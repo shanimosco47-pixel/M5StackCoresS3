@@ -1,0 +1,22 @@
+{
+  "status": "experimental-built-not-flashed-not-hardware-validated",
+  "file": "cores3-experimental-2026-11-20.bin",
+  "sha256": "bd1f044c1fce14ae0eb61219d938e070284338f9649b34e585d5465e36033049",
+  "bytes": 3724544,
+  "board": "M5Stack CoreS3",
+  "chip": "ESP32-S3",
+  "flash_mb": 16,
+  "psram_mb": 8,
+  "psram_mode": "quad",
+  "idf": "5.5.5",
+  "upstream": "https://github.com/ciniml/stackchan-idf",
+  "upstream_tag": "v0.14.3",
+  "upstream_commit": "1d94b02990bf23da51a01164de1db74e54b9cab4",
+  "app_offset": "0x1a0000",
+  "app_partition_bytes": 5242880,
+  "requires": "Existing v0.14.3 CoreS3 matching partition/recovery layout; NOT a merged full-flash image",
+  "voice_model": "gpt-realtime-2.1-mini",
+  "search_provider": "OpenAI Responses",
+  "search_model": "gpt-4.1",
+  "credentials": "Not included. Existing device NVS is separate."
+}
