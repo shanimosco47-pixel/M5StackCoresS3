@@ -1,7 +1,7 @@
 import base64
 import json
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -11,8 +11,8 @@ from tests.test_turn import settings, wav
 
 
 class ProviderTests(unittest.IsolatedAsyncioTestCase):
-    async def test_exchange_rate_requires_search_and_receives_today_context(self):
-        for prompt in ('מה שער הדולר?', 'What is the USD ILS exchange rate?'):
+    async def test_changing_fact_requires_search_and_receives_today_context(self):
+        for prompt in ('מה מזג האוויר?', 'What is the weather?'):
             def handler(request):
                 body = json.loads(request.content)
                 self.assertEqual(body['tool_choice'], {'type': 'function', 'function': {'name': 'web_search'}})
@@ -25,12 +25,47 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_current_fact_unavailable_or_refused_does_not_invent_rate(self):
         providers = await self.client_for(lambda request: self.fail('unavailable current fact reached model'))
-        self.assertIn('אינו זמין', (await providers.reply('מה שער הדולר?', True)).text)
-        def handler(request):
-            self.assertEqual(json.loads(request.content)['tool_choice'], 'none')
-            return httpx.Response(200, json={'choices': [{'message': {'content': 'אין לי נתון מאומת'}}]})
-        providers = await self.client_for(handler, tavily_key='test-search')
+        self.assertIn('אינו זמין', (await providers.reply('מה מזג האוויר?', True)).text)
         self.assertIn('מאומת', (await providers.reply('אל תחפש, מה שער הדולר?', True)).text)
+
+    async def test_dollar_rate_comes_from_official_api_without_model_rewriting(self):
+        published = datetime.now(timezone.utc) - timedelta(days=1)
+        for prompt in ('מה שער הדולר?', 'What is the USD ILS exchange rate?'):
+            def handler(request):
+                self.assertEqual(str(request.url), 'https://www.boi.org.il/PublicApi/GetExchangeRate?key=USD')
+                self.assertEqual(request.method, 'GET')
+                self.assertNotIn('authorization', request.headers)
+                return httpx.Response(200, json={'key': 'USD', 'currentExchangeRate': 3.326,
+                                                 'unit': 1, 'lastUpdate': published.isoformat()})
+            providers = await self.client_for(handler)
+            answer = await providers.reply(prompt, True)
+            self.assertIn('3.326', answer.text)
+            self.assertIn(published.strftime('%d.%m.%Y'), answer.text)
+            self.assertIn('לא שער מסחר בזמן אמת', answer.text)
+            self.assertEqual(answer.sources[0]['title'], 'בנק ישראל — שער יציג לדולר')
+
+    async def test_official_rate_rejects_stale_future_malformed_and_unavailable_data(self):
+        current = {'key': 'USD', 'currentExchangeRate': 3.326, 'unit': 1,
+                   'lastUpdate': datetime.now(timezone.utc).isoformat()}
+        for change in ({'lastUpdate': (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()},
+                       {'lastUpdate': (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()},
+                       {'lastUpdate': 'bad'}, {'currentExchangeRate': True}, {'unit': 100},
+                       {'key': 'EUR'}, {'currentExchangeRate': float('inf')}):
+            # JSON Infinity is deliberately supplied as raw provider bytes.
+            providers = await self.client_for(lambda request: httpx.Response(
+                200, content=json.dumps(current | change).encode()))
+            answer = await providers.reply('מה שער הדולר?', True)
+            self.assertIn('לא הצלחתי לאמת', answer.text)
+            self.assertNotIn('3.326', answer.text)
+        providers = await self.client_for(lambda request: httpx.Response(503))
+        self.assertIn('לא הצלחתי לאמת', (await providers.reply('מה שער הדולר?', True)).text)
+        providers = await self.client_for(lambda request: self.fail('lookup ignored privacy'),
+                                          private_search_approved=False)
+        self.assertIn('מאומת', (await providers.reply('מה שער הדולר?', True)).text)
+
+    async def test_historical_rate_request_is_not_replaced_by_latest_rate(self):
+        providers = await self.client_for(lambda request: self.fail('unavailable historical search left server'))
+        self.assertIn('אינו זמין', (await providers.reply('מה היה שער הדולר בשנת 2020?', True)).text)
 
     async def client_for(self, handler, **config):
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))

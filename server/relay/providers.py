@@ -1,6 +1,7 @@
 """Bounded, verified HTTPS calls. Never log upstream bodies, keys or transcripts."""
 import base64
 import json
+import math
 import re
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
@@ -127,6 +128,18 @@ class HTTPProviders:
         search_refused = bool(re.search(
             r'אל\s+ת?חפש|בלי\s+חיפוש|ללא\s+חיפוש|לא\s+(?:צריך|רוצה)\s+לחפש|'
             r'\b(?:do not|don[’\x27]t|never)\s+(?:search|browse)|\bwithout\s+search', text, re.I))
+        # A current USD/ILS quote is a structured fact, not a search-summary task.
+        # Never let an LLM relabel a cached snippet as today's rate.
+        dollar_question = len(text) <= 120 and bool(re.search(
+            r'שער.{0,24}דולר|כמה.{0,20}(?:שווה|עולה).{0,12}דולר|'
+            r'\bUSD\b.{0,12}\bILS\b|\bdollar.{0,12}(?:rate|shekel)', text, re.I))
+        historical = bool(re.search(r'\b(?:19|20)\d{2}\b|אתמול|שלשום|לפני|היה|היסטורי|'
+                                    r'\byesterday\b|\bhistorical\b|\blast (?:week|month|year)\b', text, re.I))
+        other_currency = bool(re.search(r'אירו|יורו|ליש.?ט|\bEUR\b|\bGBP\b', text, re.I))
+        if dollar_question and not historical and not other_currency:
+            if search_refused or (private and not self.settings.private_search_approved):
+                return Answer('בלי בדיקה באינטרנט אין לי שער דולר עדכני מאומת.', [])
+            return await self._dollar_rate()
         explicit_search = not search_refused and bool(re.search(
             r'חפש|חיפוש|באינטרנט|ברשת|\bsearch\b|\blook up\b|\bbrowse\b|'
             r'שער.{0,24}(?:דולר|אירו|יורו|מטבע|חליפין)|מזג.{0,3}האוויר|חדשות|'
@@ -173,6 +186,27 @@ class HTTPProviders:
         if not isinstance(content, str) or not content.strip():
             raise UpstreamError('llm')
         return Answer(content, sources)
+
+    async def _dollar_rate(self):
+        url = 'https://www.boi.org.il/PublicApi/GetExchangeRate?key=USD'
+        try:
+            body = await self._post('search', url, method='GET', limit=8192)
+            value = self._json(body, 'search')
+            rate = value.get('currentExchangeRate')
+            published = datetime.fromisoformat(value['lastUpdate'].replace('Z', '+00:00'))
+            if published.tzinfo is None:
+                raise ValueError('missing timezone')
+            age = (datetime.now(timezone.utc) - published).total_seconds()
+            if (value.get('key') != 'USD' or type(value.get('unit')) is not int or value['unit'] != 1
+                    or type(rate) not in (int, float) or not math.isfinite(rate) or not 0 < rate < 1000
+                    or not -300 <= age <= 4 * 86400):
+                raise ValueError('unverified rate')
+            spoken = f'{rate:.4f}'.rstrip('0').rstrip('.')
+            text = (f'השער היציג האחרון שפרסם בנק ישראל הוא {spoken} שקלים לדולר, '
+                    f'בתאריך {published.strftime("%d.%m.%Y")}. זה שער יציג, לא שער מסחר בזמן אמת.')
+            return Answer(text, [{'title': 'בנק ישראל — שער יציג לדולר', 'url': url}])
+        except (UpstreamError, ValueError, TypeError, KeyError, AttributeError, OverflowError):
+            return Answer('לא הצלחתי לאמת כעת שער דולר עדכני בבנק ישראל. נסה שוב בהמשך.', [])
 
     async def search(self, query: str):
         body = await self._post(
