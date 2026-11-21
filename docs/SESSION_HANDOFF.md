@@ -49,8 +49,10 @@ Actions-bot comments cannot authenticate to Codex: after pushing, the authorized
 @codex review; the read-only gate then verifies current-head completion and no unresolved findings.
 The first staging deployment exposed Google Frontend's reserved /healthz path. Canonical aliases /health
 and /ready were added with a failing-then-passing regression test; use those for Cloud Run verification.
-Current suite:41relay/cloud-budget tests and8review-gate tests. GitHub review of aa49bb8found
+Current suite:42relay/cloud-budget tests and8review-gate tests. GitHub review of aa49bb8found
 an additional budget-filter narrowing defect; reproduced and fixed by full normalized comparison.
+Follow-up review found unchecked alert thresholds/recipients; reproduced and now verified as well,
+accounting for omitted false booleans, rule ordering and unspecified/default CURRENT_SPEND.
 See CLOUD_DEPLOYMENT.md and PR1for live revision checks and current-head review results.
 No firmware deployment occurred, and the device has no relay adapter yet.
 

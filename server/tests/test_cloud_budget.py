@@ -34,3 +34,24 @@ class BudgetScopeTests(unittest.TestCase):
                         {'projects': ['projects/other']}, {'creditTypesTreatment': 'INCLUDE_ALL_CREDITS'},
                         {'labels': {'team': ['m5']}}):
             self.assertFalse(bootstrap.filters_match(cap | changes, cap))
+
+    def test_disabled_recipients_or_wrong_thresholds_are_not_a_verified_alert(self):
+        expected = {'thresholdRules': [{'thresholdPercent': n, 'spendBasis': 'CURRENT_SPEND'}
+                                       for n in (0.5, 0.8, 1.0)],
+                    'notificationsRule': {'enableProjectLevelRecipients': True,
+                                          'disableDefaultIamRecipients': False}}
+        for changes in ({'thresholdRules': [{'thresholdPercent': 10}]}, {'thresholdRules': []},
+                        {'thresholdRules': [{'thresholdPercent': n, 'spendBasis': 'FORECASTED_SPEND'}
+                                            for n in (0.5, 0.8, 1.0)]},
+                        {'notificationsRule': {'enableProjectLevelRecipients': False,
+                                               'disableDefaultIamRecipients': True}},
+                        {'notificationsRule': {'enableProjectLevelRecipients': True,
+                                               'disableDefaultIamRecipients': True}},
+                        {'notificationsRule': {}}):
+            self.assertFalse(bootstrap.notification_settings_match(expected | changes, expected))
+        actual = {'thresholdRules': [{'thresholdPercent': n} for n in (1.0, 0.8, 0.5)],
+                  'notificationsRule': {'enableProjectLevelRecipients': True}}
+        self.assertTrue(bootstrap.notification_settings_match(actual, expected))
+        unspecified = actual | {'thresholdRules': [{'thresholdPercent': n, 'spendBasis': 'BASIS_UNSPECIFIED'}
+                                                   for n in (0.5, 0.8, 1.0)]}
+        self.assertTrue(bootstrap.notification_settings_match(unspecified, expected))

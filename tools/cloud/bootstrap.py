@@ -24,6 +24,21 @@ def filters_match(actual, expected):
     return defaults | actual == defaults | expected
 
 
+def notification_settings_match(actual, expected):
+    def thresholds(budget):
+        rules = []
+        for rule in budget.get('thresholdRules', []):
+            basis = rule.get('spendBasis', 'BASIS_UNSPECIFIED')
+            rules.append((rule.get('thresholdPercent', -1),
+                          'CURRENT_SPEND' if basis == 'BASIS_UNSPECIFIED' else basis))
+        return sorted(rules)
+    actual_notice = actual.get('notificationsRule', {})
+    expected_notice = expected.get('notificationsRule', {})
+    return thresholds(actual) == thresholds(expected) and all(
+        actual_notice.get(key, False) == expected_notice.get(key, False)
+        for key in ('enableProjectLevelRecipients', 'disableDefaultIamRecipients'))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', required=True)
@@ -118,7 +133,8 @@ def main():
             current_amount = existing.get('amount', {}).get('specifiedAmount', {})
             actual = Decimal(current_amount.get('units', '0')) + Decimal(current_amount.get('nanos', 0)) / 1_000_000_000
             scope_matches = filters_match(existing.get('budgetFilter', {}), payload['budgetFilter'])
-            if not scope_matches or actual != args.cap or current_amount.get('currencyCode') != currency:
+            if (not scope_matches or not notification_settings_match(existing, payload)
+                    or actual != args.cap or current_amount.get('currencyCode') != currency):
                 raise SystemExit('Existing named budget differs; inspect it rather than overwrite it')
             return existing
         return api('POST', base, payload)

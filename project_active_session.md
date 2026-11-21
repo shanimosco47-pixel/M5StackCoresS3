@@ -30,7 +30,7 @@ Original flash/NVS backups and credentials remain local, never published.
 FastAPI v1 WAV / v2 text+sources+audio, Groq/OpenRouter/Tavily/Azure adapters, authentication,
 bounded uploads, WAV validation, silence filtering, tool limits, privacy denial, cancellation,
 timeouts and replay protection implemented. Private routing remains unapproved by default.
-41 relay/cloud-budget tests and8actual-workflow gate tests pass after the Google speech change.
+42 relay/cloud-budget tests and8actual-workflow gate tests pass after the Google speech change.
 Ruff and Bandit medium/high pass; dependencies unchanged from the audited versions.
 Separate reviewer reproduced upload/replay/cancellation/deadline defects; all fixed with regressions.
 Actual Codex GitHub review found a replay-cache eviction bypass; reproduced, fixed and thread resolved.
@@ -84,7 +84,9 @@ Preserve Azure compatibility, the physical firmware, fail-closed private routing
 
 1. Finish the Google speech change review. GitHub Codex review of aa49bb8found a P2:
    bootstrap accepted extra scope-narrowing budget filters. Reproduced7failing assertions;
-   full normalized comparison fixes it,41tests pass, and live bootstrap verifies both budgets.
+   full normalized comparison fixes it. Follow-up review also found unchecked alert thresholds
+   and recipients; reproduced and fixed with API-default normalization.42tests pass.
+   Live bootstrap verifies the actual budget settings without overwriting them.
    Obtain current-head review after pushing the fix and final operational documentation.
 2. Three provider keys are stored. Do not request keys in chat or create paid subscriptions.
 3. Use tools/cloud/set_provider_secrets.py in the user's interactive terminal, or Secret Manager UI.
