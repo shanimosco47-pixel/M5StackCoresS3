@@ -1326,6 +1326,7 @@ static int gatt_access_cb(uint16_t /*conn_handle*/, uint16_t attr_handle,
             Provider p = Provider::OpenAi;
             if (pt[0] == static_cast<std::uint8_t>(Provider::Gemini)) p = Provider::Gemini;
             else if (pt[0] == static_cast<std::uint8_t>(Provider::XiaoZhi)) p = Provider::XiaoZhi;
+            else if (pt[0] == static_cast<std::uint8_t>(Provider::Relay)) p = Provider::Relay;
             xSemaphoreTake(g_mutex, portMAX_DELAY);
             g_staging.set_num("provider", static_cast<std::uint32_t>(p));
             xSemaphoreGive(g_mutex);

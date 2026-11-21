@@ -915,6 +915,7 @@
         <option value="0">OpenAI Realtime</option>
         <option value="1">Google Gemini Live</option>
         <option value="2">XiaoZhi サーバー</option>
+        <option value="3">Private HTTPS Relay (configure URL/secret over Wi-Fi)</option>
       </select>
       <p class="hint">どの会話バックエンドを使うかを切り替えます。キー / 設定は下記すべてに保存できます。</p>
 
@@ -3022,7 +3023,7 @@ document.getElementById('btn-connect').addEventListener('click', async () => {
         const sel = document.getElementById('provider');
         sel.value = String(provider);
         sel.dataset.initial = String(provider);
-        log(`プロバイダ: ${provider === 1 ? 'Gemini Live' : 'OpenAI Realtime'}`);
+        log(`プロバイダ: ${['OpenAI Realtime', 'Gemini Live', 'XiaoZhi', 'Relay'][provider] || 'Unknown'}`);
       } catch (e) {
         log(`プロバイダ取得失敗: ${e.message}`, 'err');
       }

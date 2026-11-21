@@ -112,6 +112,8 @@ struct ConversationEvent {
     // to measure event-queue latency (`now_us() - emit_us`) when diagnosing
     // audio pipeline stalls. 0 if the producer didn't set it.
     std::int64_t emit_us{0};
+    // Locally generated request epoch; Relay discards events queued before a touch.
+    std::uint32_t generation{0};
 };
 
 class ConversationService {
@@ -134,6 +136,9 @@ public:
 
     // Tear down the session.
     virtual void stop() = 0;
+    // Asynchronous backends may still be releasing their transport after stop.
+    // Audio handoff can poll this without blocking its coordinator.
+    virtual bool transport_stopped() const { return true; }
 
     // Feed a chunk of microphone PCM16 (mono, ConversationConfig sample rate).
     virtual tl::expected<void, ConversationError> push_audio(std::span<const std::int16_t> pcm) = 0;
@@ -166,6 +171,7 @@ public:
     }
 
     virtual ConversationState state() const = 0;
+    virtual bool accepts_event(const ConversationEvent&) const { return true; }
 
     // Number of mic-uplink chunks evicted (oldest-dropped) from the client's
     // audio TX queue because the WebSocket sender could not keep up,

@@ -871,8 +871,14 @@ extern "C" void app_main()
     const char* api_key = "";
     const char* xiaozhi_url = "";
     const char* xiaozhi_token = "";
+    const char* relay_url = "";
+    const char* relay_token = "";
     if (!cfg.openai_enabled) {
         ESP_LOGI(kTag, "Conversation disabled by configuration");
+    } else if (cfg.provider == stackchan::config::Provider::Relay) {
+        relay_url = cfg.relay_url.c_str();
+        relay_token = cfg.relay_token.c_str();
+        ESP_LOGI(kTag, "provider=Relay, credentials=%s", relay_url[0] && relay_token[0] ? "set" : "empty");
     } else if (cfg.provider == stackchan::config::Provider::Gemini) {
         if (!cfg.gemini_api_key.empty()) {
             api_key = cfg.gemini_api_key.c_str();
@@ -901,9 +907,10 @@ extern "C" void app_main()
         .xiaozhi_url = xiaozhi_url, .xiaozhi_token = xiaozhi_token,
         .system_prompt = cfg.system_prompt.c_str(),
         .extra_headers = cfg.conv_extra_headers.c_str(),
-        .seg_buf = g_conv_seg_buf};
+        .seg_buf = g_conv_seg_buf, .relay_url = relay_url, .relay_token = relay_token};
 #else
     (void)api_key; (void)xiaozhi_url; (void)xiaozhi_token;
+    (void)relay_url; (void)relay_token;
 #endif
 
     // Overlay screen stack: SoftAP QR screen + the per-board settings UI

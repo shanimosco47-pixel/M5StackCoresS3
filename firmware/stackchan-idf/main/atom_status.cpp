@@ -83,6 +83,8 @@ const char* conv_status_label(ConvStatus s)
     case ConvStatus::Connecting:   return "conn..";
     case ConvStatus::Listening:    return "ready";
     case ConvStatus::Talking:      return "talk";
+    case ConvStatus::Hearing:      return "hear";
+    case ConvStatus::Thinking:     return "think";
     case ConvStatus::Yielded:      return "yld";
     case ConvStatus::Reconnecting: return "recn..";
     case ConvStatus::Error:        return "err";

@@ -769,6 +769,7 @@
         <option value="0">OpenAI Realtime</option>
         <option value="1">Google Gemini Live</option>
         <option value="2">XiaoZhi サーバー</option>
+        <option value="3">Private HTTPS Relay</option>
       </select>
       <p class="hint">どの会話バックエンドを使うかを切り替えます。キー / 設定は下記すべてに保存できます。</p>
 
@@ -783,6 +784,11 @@
 
       <label for="xiaozhi-token">XiaoZhi トークン</label>
       <input type="password" id="xiaozhi-token" maxlength="256" placeholder="（任意 / 変更しない場合は空欄）">
+      <label for="relay-url">Relay HTTPS URL</label>
+      <input type="password" id="relay-url" maxlength="256" placeholder="https://relay.example.com (leave empty to keep)">
+      <label for="relay-token">Relay device secret</label>
+      <input type="password" id="relay-token" maxlength="256" placeholder="Leave empty to keep">
+      <p class="hint">Relay uses the private profile. Device persona and memory are not sent.</p>
 
       <label for="system-prompt">システムプロンプト (会話の人格)</label>
       <textarea id="system-prompt" rows="6" maxlength="2048"
@@ -1691,6 +1697,14 @@ async function apply() {
     const xzToken = $('xiaozhi-token').value;
     if (xzUrl)     { await postText('/api/xiaozhi-url', xzUrl);               log('XiaoZhi URL 送信', 'ok'); }
     if (xzToken)   { await postText('/api/xiaozhi-token', xzToken);           log('XiaoZhi トークン送信', 'ok'); }
+    const relaySettings = {};
+    if ($('relay-url').value.trim()) relaySettings['relay-url'] = $('relay-url').value.trim();
+    if ($('relay-token').value) relaySettings['relay-token'] = $('relay-token').value;
+    if (Object.keys(relaySettings).length) {
+      await postText('/api/settings', JSON.stringify(relaySettings));
+      $('relay-url').value = ''; $('relay-token').value = '';
+      log('Relay settings saved', 'ok');
+    }
     await postText('/api/provider', provider);
     await postText('/api/operation-mode', $('operation-mode').value);
     await postText('/api/audio-output', $('audio-output').value);
@@ -2158,6 +2172,7 @@ refresh();
 // DOM id。checkbox は toggle-label ごと、input/select はコントロール直後に置く。
 const BADGE_FIELDS = {
   'ssid':'ssid', 'password':'password', 'provider':'provider',
+  'relay-url':'relay-url', 'relay-token':'relay-token',
   'operation-mode':'operation-mode', 'audio-output':'audio-output',
   'lip-sync-mode':'lip-sync-mode', 'led-mouth-sync':'led-mouth-sync',
   'barge-in':'barge-in-enabled', 'startup-arpeggio':'startup-arpeggio-enabled',

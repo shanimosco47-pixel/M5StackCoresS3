@@ -285,6 +285,8 @@ constexpr const char* kTag = "stackchan";
                 app::screens::handle_flick(td.distanceX(), td.distanceY());
             }
             if (td.wasPressed()) {
+                g_state->last_touch_ms.store(static_cast<std::uint32_t>(esp_timer_get_time() / 1000),
+                                             std::memory_order_relaxed);
                 // Priority dispatch through the screen stack (AP screen
                 // swallows everything while up; device_ui owns its hot
                 // corners even when closed).

@@ -144,6 +144,8 @@ void render_task_entry(void* arg)
     bool balloon_pending = false;
     bool ui_was_active = false;
     bool last_muted = false;
+    std::uint32_t last_frame_log_ms = 0;
+    std::uint32_t frame_count = 0;
 
     for (;;) {
         const std::uint32_t now_ms = static_cast<std::uint32_t>(esp_timer_get_time() / 1000);
@@ -259,7 +261,29 @@ void render_task_entry(void* arg)
             draw_mute_badge(canvas, inset, inset + (gauge_shown ? 22 : 0));
         }
 
+        using VI = avatar::VoiceIndicator;
+        VI phase = VI::Offline;
+        switch (state->conv.status.load(std::memory_order_relaxed)) {
+        case ConvStatus::Listening: phase = VI::Ready; break;
+        case ConvStatus::Hearing: phase = VI::Hearing; break;
+        case ConvStatus::Thinking: phase = VI::Thinking; break;
+        case ConvStatus::Talking: phase = VI::Speaking; break;
+        case ConvStatus::Error: phase = VI::Error; break;
+        default: break;
+        }
+        const auto error_until = state->conv.error_until_ms.load(std::memory_order_relaxed);
+        if (error_until && static_cast<std::int32_t>(error_until - now_ms) > 0) phase = VI::Error;
+        const auto touched = state->last_touch_ms.load(std::memory_order_relaxed);
+        if (touched && now_ms - touched < 400) phase = VI::Touch;
+        avatar::draw_voice_indicator(canvas, phase, now_ms);
         canvas.end_frame();
+        ++frame_count;
+        if (now_ms - last_frame_log_ms >= 30000) {
+            ESP_LOGI(kTag, "frames=%u brightness=%u voice_phase=%u",
+                     static_cast<unsigned>(frame_count), static_cast<unsigned>(display.getBrightness()),
+                     static_cast<unsigned>(phase));
+            last_frame_log_ms = now_ms;
+        }
 
         if (balloon_pending && avatar.is_balloon_done()) {
             balloon_pending = false;

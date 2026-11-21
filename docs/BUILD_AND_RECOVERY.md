@@ -43,10 +43,35 @@ Do not replace its NVS with example/default settings. Do not commit NVS dumps or
 The update_notice u8 flag should only be armed after final end-to-end validation;
 it is consumed before sending the one-time Hebrew completion announcement.
 
-## Recovery
+## Relay build and installation — 2026-11-21
+
+The new Relay application was built and flashed at0x1a0000after a fresh complete16MBbackup,
+SHA25605e81a5cadd65bc407166aed3182ee43d0ef3eb3cabeb0262cbaf3d4322ed36d. Both actual extension
+table copies had valid CRCs and main0x1a0000/0x500000. No bootloader/partition/recovery/exttab write.
+The new image and source-tree fingerprint are in artifacts/cores3-relay-2026-11-21.json.
+The older experimental image/manifest above remain historical and were not used for this flash.
+
+Provider::Relay=3 is append-only. NVS relay_url/relay_token configure the verified HTTPS base URL
+and a random device secret; cloud provider keys stay server-side. Volume180/barge-in1/Wi-Fi preserved.
+tools/diagnostics/provision_relay.py prepares a new private NVS file from a fresh backup using the
+installed IDF parser, validates all CRCs and byte-preserves unrelated records, including Wi-Fi blobs.
+It does not flash; output inside the repository and overwriting an existing file are refused.
+The helper appends only new Relay settings and refuses to replace existing Relay credentials;
+later changes use the device settings API. Do not publish any NVS file or full backup.
+
+Independent review exposed delayed relisten and unbounded JSON recursion; host regressions cover
+the fixed gate/reader/depth behavior. Hardware exposed intermittent TLS INVALID_RECORD with dynamic
+RX polling. The selected per-connection HTTP_TLS_DYN_BUF_RX_STATIC strategy retains receive state;
+hardware playback was observed afterwards. Do not replace verified TLS with an insecure workaround.
+
+## Original recovery archive
 
 The original full 16MB flash backup is retained locally by the user and excluded from Git.
 SHA256: A674BD19B7B8EF728BDBCA92C3029CABBFABA18160D928173009484D06CC5B5B.
 It includes credentials. Restoring it also restores the original obsolete OpenAI demo and its incompatibility.
 Normal recovery should prefer the verified stable upstream release and preserve current settings.
 Choose the current serial port at recovery time; do not assume the old COM port is unchanged.
+
+Latest responsive-status image:3738896bytes, SHA256deff20097d92b35fd8ebdd187c463851ae571a0ed4e4a028bca42d8bea3018c3.
+App-only flash verified. A reported black display recovered after USB reset; PMIC boot registers were
+healthy. Root cause remains unknown. Render frames/brightness/phase metadata now helps diagnose recurrence.

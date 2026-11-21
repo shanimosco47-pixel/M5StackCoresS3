@@ -28,6 +28,7 @@
 #include "conversation/metrics.hpp"
 #include "conversation/openai_realtime_client.hpp"
 #include "conversation/xiaozhi_client.hpp"
+#include "conversation/relay_client.hpp"
 #include "utf8.hpp"
 #include "wifi_sta.hpp"
 #include "web_search.hpp"
@@ -212,19 +213,24 @@ public:
     Coordinator(SharedState& state, const char* api_key, config::Provider provider,
                 board::Si12tTouch* touch, const char* xiaozhi_url, const char* xiaozhi_token,
                 const char* system_prompt, const char* extra_headers,
-                const std::array<std::int16_t*, kSegmentBuffers>& seg_buf)
+                const std::array<std::int16_t*, kSegmentBuffers>& seg_buf,
+                const char* relay_url, const char* relay_token)
         : state_{state}, api_key_{api_key != nullptr ? api_key : ""},
           provider_{provider}, touch_{touch},
           xiaozhi_url_{xiaozhi_url != nullptr ? xiaozhi_url : ""},
           xiaozhi_token_{xiaozhi_token != nullptr ? xiaozhi_token : ""},
           system_prompt_{system_prompt != nullptr ? system_prompt : ""},
           extra_headers_{extra_headers != nullptr ? extra_headers : ""},
+          relay_url_{relay_url != nullptr ? relay_url : ""},
+          relay_token_{relay_token != nullptr ? relay_token : ""},
           seg_buf_{seg_buf}
     {
         // Per-provider audio rates. The OpenAI client further compands its
         // 8 kHz PCM16 into µ-law on the wire; Gemini sends raw PCM16; XiaoZhi
         // streams Opus (16 kHz mono up, server-rate down, resampled to 24 kHz).
-        if (provider_ == config::Provider::Gemini || provider_ == config::Provider::XiaoZhi) {
+        if (provider_ == config::Provider::Relay) {
+            mic_sample_rate_ = speaker_sample_rate_ = 16000;
+        } else if (provider_ == config::Provider::Gemini || provider_ == config::Provider::XiaoZhi) {
             mic_sample_rate_ = 16000;
             speaker_sample_rate_ = 24000;
         } else {
@@ -239,7 +245,8 @@ public:
     {
         // XiaoZhi is keyed by its server URL rather than an API key; the other
         // providers need a non-empty api_key.
-        const bool disabled = provider_ == config::Provider::XiaoZhi ? xiaozhi_url_.empty()
+        const bool disabled = provider_ == config::Provider::Relay ? (relay_url_.empty() || relay_token_.empty())
+                             : provider_ == config::Provider::XiaoZhi ? xiaozhi_url_.empty()
                                                                      : api_key_.empty();
         if (disabled) {
             ESP_LOGW(kTag, "credentials empty for selected provider — conversation disabled");
@@ -277,6 +284,8 @@ public:
 
         if (provider_ == config::Provider::Gemini) {
             client_ = std::make_unique<conv::GeminiLiveClient>(api_key_);
+        } else if (provider_ == config::Provider::Relay) {
+            client_ = std::make_unique<conv::RelayClient>(relay_url_, relay_token_);
         } else if (provider_ == config::Provider::XiaoZhi) {
             client_ = std::make_unique<conv::XiaoZhiClient>(xiaozhi_url_, xiaozhi_token_);
         } else {
@@ -314,8 +323,10 @@ public:
                     set_local(Local::Yielded);
                     state_.conv.active.store(false, std::memory_order_relaxed);
                     state_.conv.idle.store(false, std::memory_order_relaxed);
-                    state_.conv.yielded_i2s.store(true, std::memory_order_release);
                 }
+                // Relay stop invalidates immediately; let its worker finish
+                // freeing TLS before publishing the existing BLE handoff flag.
+                state_.conv.yielded_i2s.store(client_->transport_stopped(), std::memory_order_release);
                 vTaskDelay(pdMS_TO_TICKS(100));
                 continue;
             }
@@ -352,7 +363,7 @@ private:
     {
         conv::ConversationEvent* ev = nullptr;
         while (xQueueReceive(event_queue_, &ev, 0) == pdTRUE) {
-            handle_event(*ev);
+            if (client_->accepts_event(*ev)) handle_event(*ev);
             delete ev;
         }
     }
@@ -407,7 +418,7 @@ private:
         // XiaoZhi v1 has no client-side tools — the server owns the persona and
         // drives the avatar's expression via its `llm` emotion messages, which
         // the client maps to AssistantEmotion events.
-        if (provider_ != config::Provider::XiaoZhi) {
+        if (provider_ != config::Provider::XiaoZhi && provider_ != config::Provider::Relay) {
             cfg.tools.push_back(make_set_expression_tool());
             cfg.tools.push_back(make_set_head_pose_tool());
             cfg.tools.push_back(make_speak_katakoto_tool());
@@ -534,7 +545,7 @@ private:
         switch (s) {
         case Local::Init: cs = ConvStatus::Connecting; break;
         case Local::Listening: cs = ConvStatus::Listening; break;
-        case Local::Thinking:
+        case Local::Thinking: cs = ConvStatus::Thinking; break;
         case Local::Speaking: cs = ConvStatus::Talking; break;
         case Local::Yielded: cs = ConvStatus::Yielded; break;
         }
@@ -551,8 +562,15 @@ private:
             service_mic();
             break;
         case Local::Thinking:
-            if (now_ms() - thinking_since_ms_ > kThinkingTimeoutMs) {
+            if (provider_ == config::Provider::Relay &&
+                (state_.barge_in_request.exchange(false, std::memory_order_relaxed) ||
+                 (touch_ != nullptr && touch_->read().firmly_touched()))) {
+                barge_in();
+            } else if (now_ms() - thinking_since_ms_ >
+                       (provider_ == config::Provider::Relay ? 50000u : kThinkingTimeoutMs)) {
                 ESP_LOGW(kTag, "thinking timed out, returning to listening");
+                state_.conv.error_until_ms.store(now_ms() + 4000, std::memory_order_relaxed);
+                if (provider_ == config::Provider::Relay) (void)client_->cancel_response();
                 enter_listening();
             } else {
                 vTaskDelay(pdMS_TO_TICKS(10));
@@ -565,7 +583,8 @@ private:
             // flipped. Otherwise a missed generationComplete (e.g. Gemini
             // Live `interrupted` without the fall-through) leaves us stuck
             // here forever with mouth_open frozen at 0. See issue #2.
-            if (now_ms() - playback_start_ms_ > kSpeakingTimeoutMs) {
+            if (now_ms() - playback_start_ms_ >
+                (provider_ == config::Provider::Relay ? 55000u : kSpeakingTimeoutMs)) {
                 ESP_LOGW(kTag, "speaking timed out (%u ms), forcing finish",
                          static_cast<unsigned>(now_ms() - playback_start_ms_));
                 finish_speaking();
@@ -812,7 +831,7 @@ private:
     // it durably before speaking, so reconnects and ordinary boots stay quiet.
     void announce_completed_update()
     {
-        if (update_notice_checked_ || provider_ != config::Provider::OpenAi) return;
+        if (update_notice_checked_ || (provider_ != config::Provider::OpenAi && provider_ != config::Provider::Relay)) return;
         update_notice_checked_ = true;
         nvs_handle_t handle;
         if (nvs_open("stackchan_cfg", NVS_READWRITE, &handle) != ESP_OK) return;
@@ -839,6 +858,9 @@ private:
     {
         switch (ev.type) {
         case conv::ConversationEventType::StateChanged:
+            if (local_ == Local::Listening && ev.state == conv::ConversationState::Listening) {
+                state_.conv.status.store(ConvStatus::Listening, std::memory_order_relaxed);
+            }
             // The protocol reaching Listening for the first time means the
             // session is live. Later protocol transitions are ignored — the
             // local state machine owns mic/speaker timing.
@@ -873,6 +895,7 @@ private:
 
         case conv::ConversationEventType::SpeechStarted:
             ESP_LOGI(kTag, "user speech started");
+            state_.conv.status.store(ConvStatus::Hearing, std::memory_order_relaxed);
             break;
 
         case conv::ConversationEventType::SpeechStopped:
@@ -884,7 +907,7 @@ private:
             break;
 
         case conv::ConversationEventType::UserTranscript:
-            ESP_LOGI(kTag, "user: %s", ev.text.c_str());
+            if (provider_ != config::Provider::Relay) ESP_LOGI(kTag, "user: %s", ev.text.c_str());
             if (!ev.text.empty()) {
                 state_.set_balloon_text(ev.text, /*hold_ms=*/2500);
             }
@@ -898,7 +921,7 @@ private:
             if (!ev.text.empty()) {
                 assistant_text_ = ev.text;
             }
-            ESP_LOGI(kTag, "assistant: %s", assistant_text_.c_str());
+            if (provider_ != config::Provider::Relay) ESP_LOGI(kTag, "assistant: %s", assistant_text_.c_str());
             if (!assistant_text_.empty()) {
                 state_.set_balloon_text(assistant_text_, /*hold_ms=*/0);
             }
@@ -962,6 +985,7 @@ private:
             break;
 
         case conv::ConversationEventType::Error: {
+            state_.conv.error_until_ms.store(now_ms() + 4000, std::memory_order_relaxed);
             // Transport errors (disconnect / handshake) are fatal — the
             // session is gone and must be rebuilt. Server-side errors (bad
             // request, a no-op cancellation, rate-limit notices, …) leave the
@@ -1176,6 +1200,7 @@ private:
         switch (provider_) {
         case config::Provider::Gemini: return "Gemini";
         case config::Provider::XiaoZhi: return "XiaoZhi";
+        case config::Provider::Relay: return "Relay";
         default: return "OpenAI";
         }
     }
@@ -1188,6 +1213,8 @@ private:
     std::string xiaozhi_token_;
     std::string system_prompt_;
     std::string extra_headers_;
+    std::string relay_url_;
+    std::string relay_token_;
     conv::ConversationConfig config_{};
     std::unique_ptr<conv::ConversationService> client_;
     QueueHandle_t event_queue_{nullptr};
@@ -1255,7 +1282,7 @@ void conversation_task_entry(void* arg)
     auto& args = *static_cast<ConversationTaskArgs*>(arg);
     auto* coordinator = new Coordinator(*args.state, args.api_key, args.provider, args.touch,
                                         args.xiaozhi_url, args.xiaozhi_token, args.system_prompt,
-                                        args.extra_headers, args.seg_buf);
+                                        args.extra_headers, args.seg_buf, args.relay_url, args.relay_token);
     coordinator->run();
     // run() only returns by deleting the task; keep the object alive regardless.
     vTaskDelete(nullptr);

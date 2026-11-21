@@ -11,8 +11,42 @@
 #include "avatar_vm/vm.hpp"
 #include "balloon.hpp"
 #include "subtitle_text.hpp"
+#include "fonts/hebrew_font.hpp"
 
 namespace stackchan::avatar {
+
+void draw_voice_indicator(RichCanvas& canvas, VoiceIndicator phase, std::uint32_t now_ms)
+{
+    static const std::string labels[] = {
+        internal::prepare_subtitle("לא מחובר").visual,
+        internal::prepare_subtitle("מאזין").visual,
+        internal::prepare_subtitle("שומע אותך").visual,
+        internal::prepare_subtitle("חושב").visual,
+        internal::prepare_subtitle("מדבר").visual,
+        internal::prepare_subtitle("לא התקבלה תשובה").visual,
+        internal::prepare_subtitle("נגיעה נקלטה").visual,
+    };
+    const int w = canvas.width() < 200 ? 116 : 150;
+    const int x = canvas.width() - w - 5, y = 5, h = 26;
+    const auto black = canvas.color565(0, 0, 0);
+    const auto color = phase == VoiceIndicator::Error ? canvas.color565(255, 100, 80)
+        : phase == VoiceIndicator::Thinking ? canvas.color565(255, 195, 55)
+        : phase == VoiceIndicator::Touch ? canvas.color565(255, 255, 255)
+        : phase == VoiceIndicator::Offline ? canvas.color565(160, 160, 160)
+        : canvas.color565(80, 230, 160);
+    canvas.begin_group(x, y, w, h);
+    canvas.fillRoundRect(x, y, w, h, 6, black);
+    canvas.drawRoundRect(x, y, w, h, 6, color);
+    canvas.setFont(&internal::hebrew_font_12);
+    canvas.setTextSize(1);
+    canvas.setTextColor(color, black);
+    canvas.setTextDatum(lgfx::textdatum_t::middle_center);
+    canvas.drawString(labels[static_cast<unsigned>(phase)].c_str(), x + w / 2 - 7, y + h / 2);
+    const bool animated = phase == VoiceIndicator::Hearing || phase == VoiceIndicator::Thinking
+        || phase == VoiceIndicator::Speaking;
+    canvas.fillCircle(x + w - 11, y + h / 2, animated ? 2 + (now_ms / 250) % 3 : 3, color);
+    canvas.end_group();
+}
 
 namespace {
 constexpr const char* TAG = "avatar";
