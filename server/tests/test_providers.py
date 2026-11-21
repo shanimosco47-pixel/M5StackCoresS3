@@ -43,6 +43,9 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
         def handler(request):
             calls.append(request.url.host)
             body = json.loads(request.content)
+            # Real free endpoints reject routing when this optional parameter is required.
+            if request.url.host == 'openrouter.ai' and 'parallel_tool_calls' in body:
+                return httpx.Response(404, json={'error': {'code': 404}})
             if request.url.host == 'api.tavily.com':
                 self.assertEqual(body['search_depth'], 'basic')
                 self.assertFalse(body['auto_parameters'])
@@ -75,7 +78,58 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('tools', body)
             return httpx.Response(200, json={'choices': [{'message': {'content': 'אין לי חיפוש זמין.'}}]})
         providers = await self.client_for(handler)
-        self.assertIn('אין לי', (await providers.reply('חפש', True)).text)
+        self.assertIn('אין לי', (await providers.reply('שלום', True)).text)
+
+    async def test_groq_llm_uses_existing_key_without_openrouter_routing_parameters(self):
+        def handler(request):
+            self.assertEqual(str(request.url), 'https://api.groq.com/openai/v1/chat/completions')
+            self.assertEqual(request.headers['authorization'], 'Bearer test-groq')
+            body = json.loads(request.content)
+            self.assertEqual(body['model'], 'openai/gpt-oss-120b')
+            self.assertEqual(body['max_completion_tokens'], 1200)
+            self.assertEqual(body['reasoning_effort'], 'low')
+            self.assertNotIn('provider', body)
+            self.assertNotIn('reasoning', body)
+            return httpx.Response(200, json={'choices': [{'finish_reason': 'stop',
+                                                        'message': {'content': 'שלום, אני שומע אותך.'}}]})
+        providers = await self.client_for(handler, llm_provider='groq', openrouter_key='',
+                                          model='openai/gpt-oss-120b', allowed_models=('openai/gpt-oss-120b',),
+                                          reasoning_effort='low', llm_max_tokens=1200)
+        self.assertTrue(providers.settings.ready)
+        self.assertIn('שומע', (await providers.reply('שלום', True)).text)
+
+    async def test_explicit_search_requires_actual_tool_and_private_search_approval(self):
+        def handler(request):
+            body = json.loads(request.content)
+            self.assertEqual(body['tool_choice'], {'type': 'function', 'function': {'name': 'web_search'}})
+            return httpx.Response(200, json={'choices': [{'message': {'content': 'בדקתי ברשת.'}}]})
+        providers = await self.client_for(handler, tavily_key='test-search')
+        with self.assertRaises(UpstreamError) as caught:
+            await providers.reply('חפש באינטרנט מה השעה', True)
+        self.assertEqual(caught.exception.stage, 'search')
+        providers = await self.client_for(lambda request: self.fail('private search left server'),
+                                          tavily_key='test-search', private_search_approved=False)
+        self.assertIn('אינו זמין', (await providers.reply('חפש באינטרנט', True)).text)
+
+    async def test_explicit_search_refusal_never_forces_or_executes_search(self):
+        for prompt in ('Do not search the internet; just say hello.',
+                       'אל תחפש באינטרנט, רק תגיד שלום', 'בלי חיפוש, רק שלום'):
+            def handler(request):
+                self.assertEqual(request.url.host, 'openrouter.ai')
+                self.assertEqual(json.loads(request.content)['tool_choice'], 'none')
+                return httpx.Response(200, json={'choices': [{'message': {'content': 'שלום'}}]})
+            providers = await self.client_for(handler, tavily_key='test-search')
+            self.assertEqual((await providers.reply(prompt, True)).text, 'שלום')
+
+    async def test_operator_can_disable_optional_reasoning_without_reducing_spoken_budget(self):
+        def handler(request):
+            body = json.loads(request.content)
+            self.assertEqual(body['reasoning'], {'effort': 'none'})
+            self.assertEqual(body['max_tokens'], 300)
+            return httpx.Response(200, json={'choices': [{'finish_reason': 'stop',
+                                                        'message': {'content': 'שלום'}}]})
+        providers = await self.client_for(handler, reasoning_effort='none')
+        self.assertEqual((await providers.reply('שלום', True)).text, 'שלום')
 
     async def test_tool_arguments_and_unknown_tools_fail_closed(self):
         for name, args in [('run_shell', '{}'), ('web_search', '{'), ('web_search', '{"query":""}')]:

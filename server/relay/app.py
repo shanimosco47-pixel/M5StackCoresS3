@@ -1,7 +1,9 @@
 import asyncio
 import base64
 import hmac
+import json
 import logging
+import struct
 import time
 import uuid
 from collections import deque
@@ -10,18 +12,25 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.requests import ClientDisconnect
 
-from .audio import MAX_INPUT_BYTES, pcm_frames, too_quiet_or_short
+from .audio import MAX_INPUT_BYTES, MAX_OUTPUT_BYTES, pcm_frames, too_quiet_or_short
 from .config import Settings
-from .service import UpstreamError, run_turn
+from .quota import FirestoreQuota, QuotaDenied, QuotaUnavailable
+from .service import Answer, UpstreamError, run_turn
 
 log = logging.getLogger('relay')
 
 
-def create_app(settings: Settings, backend) -> FastAPI:
+NOTICE_TEXT = 'העדכון הושלם. אני מוכן לשיחה ולחיפוש באינטרנט.'
+
+
+def create_app(settings: Settings, backend, quota=None) -> FastAPI:
     app = FastAPI(title='Hebrew CoreS3 relay', docs_url=None, redoc_url=None)
     active = {}
     recent = {}
     admissions = deque()
+
+    def configured():
+        return settings.ready and (not settings.durable_quotas_required or quota is not None)
 
     def error(status, name, identifier=None, stage=None):
         body = {'error': name}
@@ -49,7 +58,7 @@ def create_app(settings: Settings, backend) -> FastAPI:
     @app.get('/readyz')
     async def ready():
         # Configuration readiness only. No billable provider probes on health checks.
-        return JSONResponse({'configured': bool(settings.ready)}, status_code=200 if settings.ready else 503)
+        return JSONResponse({'configured': bool(configured())}, status_code=200 if configured() else 503)
 
     @app.delete('/v2/turn/{identifier}')
     async def cancel(identifier: str, request: Request):
@@ -65,7 +74,30 @@ def create_app(settings: Settings, backend) -> FastAPI:
             task.cancel()
         return Response(status_code=204, headers={'Cache-Control': 'no-store'})
 
+    async def admit_turn(identifier):
+        now = time.monotonic()
+        while admissions and admissions[0] <= now - 86400:
+            admissions.popleft()
+        if (len(admissions) >= settings.requests_per_day
+                or sum(stamp > now - 60 for stamp in admissions) >= settings.requests_per_minute):
+            raise QuotaDenied('minute_or_day')
+        admissions.append(now)
+        if settings.durable_quotas_required and quota is None:
+            raise QuotaUnavailable()
+        if quota is not None:
+            await quota.admit(identifier)
+
     async def process(request, identifier, profile):
+        if request.url.path == '/v3/notice':
+            await admit_turn(identifier)
+            speech = await backend.synthesize(NOTICE_TEXT)
+            try:
+                if len(speech) > MAX_OUTPUT_BYTES:
+                    raise ValueError('oversized notice')
+                pcm_frames(speech, max_seconds=47)
+            except ValueError as failure:
+                raise UpstreamError('tts') from failure
+            return '', Answer(NOTICE_TEXT, []), speech, {}
         body = bytearray()
         try:
             async for chunk in request.stream():
@@ -79,17 +111,13 @@ def create_app(settings: Settings, backend) -> FastAPI:
             return error(422, 'invalid_audio', identifier)
         if too_quiet_or_short(frames):
             return None
-        now = time.monotonic()
-        while admissions and admissions[0] <= now - 86400:
-            admissions.popleft()
-        if (len(admissions) >= settings.requests_per_day
-                or sum(stamp > now - 60 for stamp in admissions) >= settings.requests_per_minute):
-            return error(429, 'local_request_limit', identifier)
-        admissions.append(now)
+        await admit_turn(identifier)
         return await run_turn(backend, bytes(body), profile == 'private')
 
     @app.post('/v1/turn')
     @app.post('/v2/turn')
+    @app.post('/v3/turn')
+    @app.post('/v3/notice')
     async def turn(request: Request):
         denied = authenticate(request)
         if denied:
@@ -99,14 +127,15 @@ def create_app(settings: Settings, backend) -> FastAPI:
             identifier = str(uuid.UUID(identifier))
         except ValueError:
             return error(400, 'invalid_request_id')
-        if not settings.ready:
+        if not configured():
             return error(503, 'not_configured', identifier)
         profile = request.headers.get('x-profile', 'private')
         if profile not in ('private', 'playground'):
             return error(400, 'invalid_profile', identifier)
-        if profile == 'private' and not settings.private_approved:
+        notice = request.url.path == '/v3/notice'
+        if profile == 'private' and not settings.private_approved and not notice:
             return error(503, 'private_route_unavailable', identifier)
-        if request.headers.get('content-type', '').split(';')[0].lower() != 'audio/wav':
+        if not notice and request.headers.get('content-type', '').split(';')[0].lower() != 'audio/wav':
             return error(415, 'expected_audio_wav', identifier)
         if active:
             return error(429, 'device_busy', identifier)
@@ -133,6 +162,17 @@ def create_app(settings: Settings, backend) -> FastAPI:
             headers = {'Cache-Control': 'no-store', 'X-Request-ID': identifier}
             if request.url.path == '/v1/turn':
                 return Response(speech, media_type='audio/wav', headers=headers)
+            if request.url.path in ('/v3/turn', '/v3/notice'):
+                metadata = json.dumps({
+                    'version': 3, 'request_id': identifier, 'profile': profile,
+                    'transcript': transcript, 'answer': answer.text, 'sources': answer.sources,
+                    'timings': timings,
+                }, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+                if len(metadata) > 16384:
+                    raise UpstreamError('llm')
+                envelope = struct.pack('<4sII', b'M5R3', len(metadata), len(speech))
+                return Response(envelope + metadata + speech,
+                                media_type='application/vnd.m5stack.turn+wav', headers=headers)
             return JSONResponse({
                 'version': 2, 'request_id': identifier, 'profile': profile,
                 'transcript': transcript, 'answer': answer.text, 'sources': answer.sources,
@@ -143,6 +183,11 @@ def create_app(settings: Settings, backend) -> FastAPI:
             return error(504, 'turn_timeout', identifier)
         except asyncio.CancelledError:
             return error(409, 'turn_cancelled', identifier)
+        except QuotaDenied as failure:
+            return error(409 if failure.reason == 'duplicate' else 429,
+                         'duplicate_request' if failure.reason == 'duplicate' else 'request_limit', identifier)
+        except QuotaUnavailable:
+            return error(503, 'quota_unavailable', identifier)
         except UpstreamError as failure:
             log.warning('upstream_failed id=%s stage=%s', identifier, failure.stage)
             return error(502, 'upstream_unavailable', identifier, failure.stage)
@@ -158,4 +203,5 @@ def create_app(settings: Settings, backend) -> FastAPI:
 def default_app():
     from .providers import HTTPProviders
     settings = Settings.from_env()
-    return create_app(settings, HTTPProviders(settings))
+    quota = FirestoreQuota(settings.google_project) if settings.durable_quotas_required else None
+    return create_app(settings, HTTPProviders(settings), quota=quota)

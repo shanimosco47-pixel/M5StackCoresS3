@@ -24,7 +24,8 @@ def wav(seconds=0.6, sample=1000, rate=16000):
 def settings(**changes):
     values = dict(device_secret='d' * 32, groq_key='test-groq', openrouter_key='test-router',
                   azure_key='test-azure', azure_region='westeurope', model='example/model',
-                  allowed_models=('example/model',), private_approved=True)
+                  allowed_models=('example/model',), private_approved=True,
+                  private_search_approved=True)
     return Settings(**(values | changes))
 
 

@@ -1,6 +1,7 @@
 """Bounded, verified HTTPS calls. Never log upstream bodies, keys or transcripts."""
 import base64
 import json
+import re
 from urllib.parse import urlsplit
 from xml.sax.saxutils import escape
 
@@ -75,21 +76,32 @@ class HTTPProviders:
             raise UpstreamError('stt')
         return text
 
-    async def _completion(self, messages, private, allow_tools):
+    async def _completion(self, messages, private, allow_tools, force_search=False):
         provider = {'allow_fallbacks': False, 'require_parameters': True}
         if private:
             provider['data_collection'] = 'deny'
             if self.settings.require_zdr:
                 provider['zdr'] = True
-        payload = {'model': self.settings.model, 'messages': messages,
-                   'max_tokens': 300, 'provider': provider}
-        if self.settings.tavily_key:
+        payload = {'model': self.settings.model, 'messages': messages}
+        if self.settings.llm_provider == 'groq':
+            url, key = 'https://api.groq.com/openai/v1/chat/completions', self.settings.groq_key
+            payload['max_completion_tokens'] = self.settings.llm_max_tokens
+            if self.settings.reasoning_effort:
+                payload['reasoning_effort'] = self.settings.reasoning_effort
+        else:
+            url, key = 'https://openrouter.ai/api/v1/chat/completions', self.settings.openrouter_key
+            payload.update(max_tokens=self.settings.llm_max_tokens, provider=provider)
+            if self.settings.reasoning_effort:
+                payload['reasoning'] = {'effort': self.settings.reasoning_effort}
+        if self.settings.tavily_key and (not private or self.settings.private_search_approved):
             payload['tools'] = [SEARCH_TOOL]
-            payload['tool_choice'] = 'auto' if allow_tools else 'none'
-            payload['parallel_tool_calls'] = False
+            payload['tool_choice'] = ({'type': 'function', 'function': {'name': 'web_search'}}
+                                      if force_search else ('auto' if allow_tools else 'none'))
+            # The relay enforces exactly one call itself. Requiring the optional
+            # parallel_tool_calls parameter excludes otherwise compatible providers.
         body = await self._post(
-            'llm', 'https://openrouter.ai/api/v1/chat/completions', limit=98304,
-            headers={'Authorization': 'Bearer ' + self.settings.openrouter_key}, json=payload,
+            'llm', url, limit=98304,
+            headers={'Authorization': 'Bearer ' + key}, json=payload,
         )
         try:
             choice = self._json(body, 'llm')['choices'][0]
@@ -106,12 +118,24 @@ class HTTPProviders:
         if (self.settings.model not in self.settings.allowed_models
                 or (private and not self.settings.private_approved)):
             raise UpstreamError('llm')
+        search_refused = bool(re.search(
+            r'אל\s+ת?חפש|בלי\s+חיפוש|ללא\s+חיפוש|לא\s+(?:צריך|רוצה)\s+לחפש|'
+            r'\b(?:do not|don[’\x27]t|never)\s+(?:search|browse)|\bwithout\s+search', text, re.I))
+        explicit_search = not search_refused and bool(re.search(
+            r'חפש|חיפוש|באינטרנט|ברשת|\bsearch\b|\blook up\b|\bbrowse\b', text, re.I))
+        search_available = bool(not search_refused and self.settings.tavily_key
+                                and (not private or self.settings.private_search_approved))
+        if explicit_search and not search_available:
+            return Answer('החיפוש באינטרנט אינו זמין במצב הזה. אפשר להמשיך בשיחה רגילה.', [])
         messages = [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': text}]
-        message = await self._completion(messages, private, allow_tools=True)
+        message = await self._completion(messages, private, allow_tools=not search_refused,
+                                         force_search=explicit_search)
         sources = []
         calls = message.get('tool_calls')
+        if explicit_search and not calls:
+            raise UpstreamError('search')
         if calls:
-            if not self.settings.tavily_key or not isinstance(calls, list) or len(calls) != 1:
+            if not search_available or not isinstance(calls, list) or len(calls) != 1:
                 raise UpstreamError('llm')
             try:
                 call = calls[0]

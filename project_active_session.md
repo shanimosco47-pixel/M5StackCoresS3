@@ -11,6 +11,10 @@ Last consolidated: 2026-11-21. Current state supersedes older session entries in
 - make sure there is a working github indipendent review working
 - כשתסיים תשמיע צליל ב M5 או יותר טוב - שיגיד שהוא סיים את העדכון
 - Latest instructions: "זה קריטי או שאפשר בלי?" (Azure), approved Google Cloud TTS alternative with "מצויין" and "GO".
+- Latest continuation: "בסדר, אפשר להתקדם עם זה, יש יותר טובים מזה, אבל בואו נתחיל עם זה."
+  Accept the current Google voice; progress toward a working conversation model and device integration.
+- User explicitly approved Tavily regular search after disclosure of training use:
+  "לאפשר חיפוש רגיל, בידיעה שהשאילתה נשלחת ל־Tavily".
 - Groq, OpenRouter and Tavily secrets each have an enabled version1, verified by metadata only.
 
 Goal: Hebrew CoreS3 assistant with faces, readable subtitles, touch interruption, internet search
@@ -57,6 +61,17 @@ Groq transcribed the synthetic Google clip; Tavily returned4sources; OpenRouter 
 Three free tool-capable OpenRouter generation probes failed; confirmed429from Gemma26B.
 No model selected or paid credits purchased. Do not claim a working end-to-end relay yet.
 
+Continuation diagnosis: requiring optional parallel_tool_calls excluded otherwise compatible free
+OpenRouter endpoints; mandatory reasoning exhausted300tokens on others. Removed optional flag,
+added operator reasoning/token-budget control and actual-search enforcement (including refusal guard).
+Groq active model API lists GPT-OSS; llama3.3was404. Selected openai/gpt-oss-120b via existing Groq key,
+low reasoning/1200maxcompletiontokens. Real backend Hebrew reply and Tavily search loop succeeded,
+with4sources. No credit purchase/new account. OpenRouter remains configurable.
+Firestore(default), Standard/freeTier, created in europe-west1; runtime has roles/datastore.user.
+Durable quota module15tests plus v3binary/fixednotice/app guards implemented; current suite66tests.
+Firmware Relay backend is being implemented separately and built in publication checkout build-cores3;
+it is still not flashed. Root cloud deploy must stay IAM-private until durable full-chain probe passes.
+
 Native Cloud Run monthly spend cap5ILSverified CONFIGURED. Overall project alert5ILSis NOT a hard cap.
 Cloud Build, storage and external provider charges are outside the Cloud Run service cap.
 Bootstrap rerun verified idempotence and preserved device-secret version1.
@@ -77,10 +92,12 @@ Python clean venv:work/relay-venv. Operational helpers and current documentation
 
 ## Remaining work
 
-Active task: replace required Azure Speech with Google Cloud Standard Hebrew TTS using the existing
-Cloud Run identity (no new user key/account). Verify pricing, bounded authenticated provider calls,
-test failures before implementation, live Hebrew audio, private deployment and exact-head GitHub review.
-Preserve Azure compatibility, the physical firmware, fail-closed private routing and existing cost controls.
+Active task: accepted Google voice is implemented and privately deployed. Diagnose OpenRouter generation
+failures before choosing a verified free conversation model. Then implement the firmware relay adapter,
+preserving local UI/audio/cancellation. Resolve the device-to-private-Cloud-Run authentication boundary
+without publishing service-account keys. Keep firmware backups and actual hardware verification.
+Google speech final review completed on245e2e0494bd14b197361f40e4aa6055a7fe5d0dwith no findings;
+all GitHub checks passed. Evidence: PR1comment7060948956.
 
 1. Finish the Google speech change review. GitHub Codex review of aa49bb8found a P2:
    bootstrap accepted extra scope-narrowing budget filters. Reproduced7failing assertions;
