@@ -1,6 +1,7 @@
 # Hebrew CoreS3 cloud relay
 
-Status: implemented and locally tested, **not deployed or connected to the device**.
+Status: implemented and deployed as a **private staging service**, not connected to the device.
+Provider keys are intentionally pending; authenticated readiness reports not configured.
 Provider tests use controlled HTTP responses, not live billable services.
 The existing firmware and experimental binary remain unchanged.
 
@@ -18,8 +19,11 @@ uvicorn relay.app:default_app --factory --host 127.0.0.1 --port 8080 --no-access
 
 Set environment variables from `.env.example` privately, or use Secret Manager mappings in Cloud Run.
 The template is not loaded automatically. Never commit filled settings.
-`/healthz` checks process liveness; `/readyz` checks configuration only and never makes billable probes.
+`/health` checks process liveness; `/ready` checks configuration only and never makes billable probes.
 Neither endpoint proves live provider access or production readiness.
+The legacy `/healthz` and `/readyz` routes remain for compatibility, but should not be used for
+Cloud Run probes: Google Frontend reserves some z-ending paths and intercepted `/healthz` with404.
+See https://docs.cloud.google.com/run/docs/known-issues#reserved-url-paths.
 
 ## Contracts
 

@@ -12,9 +12,13 @@
    Do instead: take a fresh private backup, use Quad PSRAM, and verify partitions before any write. The archived experimental binary is app-only at 0x1a0000.
 
 ## Shell and Build Reliability
-1. **[2026-11-21] Windows IDF tools need UTF-8.**
+1. **[2026-11-21] Google Frontend intercepts some z-ending paths.**
+   Do instead: use /health and /ready for Cloud Run, and verify live authenticated HTTP responses; local /healthz success is insufficient.
+2. **[2026-11-21] Cloud operations must name their target project.**
+   Do instead: pass --project explicitly and use the target's quota-project header for REST calls; do not depend on global gcloud config.
+3. **[2026-11-21] Windows IDF tools need UTF-8.**
    Do instead: set PYTHONUTF8=1 and PYTHONIOENCODING=utf-8 before activating ESP-IDF 5.5.5.
-2. **[2026-11-21] Dependencies are pinned at the repository root.**
+4. **[2026-11-21] Dependencies are pinned at the repository root.**
    Do instead: initialize root Git submodules, then apply firmware/stackchan-idf/tools/apply-m5-patches.sh before building.
 
 ## Data and User Preferences

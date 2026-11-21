@@ -28,15 +28,20 @@ The source appendix was saved as reference, not treated as tested code.
 The user subsequently said “אל תעצור” and explicitly requested a working independent GitHub review.
 The relay is now implemented in server/ with32passing local tests and a separate read-only review.
 Provider tests use controlled HTTP transports; no new-provider live inference has run.
-The selected cloud project is hey-usa. Gcloud authentication was refreshed and project access verified.
-Billing is disabled; enabling Cloud Run/build/registry/Secret Manager was refused for this reason.
-User was asked to activate billing themselves or choose hosting without a card. No billing was activated.
+The user subsequently created project M5Stack, IDm5stack-515405, and a new open billing account.
+The new project was linked and required APIs enabled. Private Cloud Run staging was deployed in europe-west1.
+Separate runtime/builder identities and five secret containers exist; only a generated device secret has a value.
+Native Cloud Run spend cap5ILS/month is verified CONFIGURED; total project alert5ILSis not a hard overall cap.
+User explicitly deferred provider keys until later. No live new-provider speech calls have run.
 Code is on feature/cloud-voice-relay; GitHub checks and exact-head Copilot review must be observed before
 calling the GitHub review integration operational. The original Copilot gate failed eligibility;
 the existing Codex app actually reviewed the PR and found a replay-cache issue, fixed with regression.
 Actions-bot comments cannot authenticate to Codex: after pushing, the authorized owner/agent must request
 @codex review; the read-only gate then verifies current-head completion and no unresolved findings.
-No cloud or firmware deployment occurred.
+The first staging deployment exposed Google Frontend's reserved /healthz path. Canonical aliases /health
+and /ready were added with a failing-then-passing regression test; use those for Cloud Run verification.
+Current suite:34relay tests and8review-gate tests. See CLOUD_DEPLOYMENT.md and PR1for live revision checks.
+No firmware deployment occurred, and the device has no relay adapter yet.
 
 ## Sensitive material deliberately omitted
 

@@ -38,12 +38,15 @@ completion job alone is not proof of no findings or a substitute for a human app
 The first live run proved that Copilot is ineligible on this account (HTTP422), so the gate was
 changed to the already connected Codex service. The actual Codex bot automatically started a
 review on PR1, verified through its GitHub comment and exact commit metadata.
-The final gate must still be observed passing before it is described as fully operational.
+The gate was subsequently observed passing on a882bb69bc761d047932ec9a706d14766a955b29,
+with the actual Codex bot reporting completed and no findings. All GitHub behavior and security jobs passed.
+[Verified live run](https://github.com/shanimosco47-pixel/M5StackCoresS3/actions/runs/44870439278).
+New commits still require a fresh current-head review; previous success never satisfies a later commit.
 
 The actual GitHub Codex review of commit68c6751 completed and found oneP2issue: the bounded replay
 cache evicted unexpired IDs after enough silent/invalid uploads. A regression test reproduced it;
 the fix refuses new IDs when capacity is full, preserving all unexpired IDs. The relay suite now
-has33tests. Eight additional tests execute the actual workflow script against controlled GitHub
+has34tests, including the subsequent Cloud Run-compatible health routes. Eight additional tests execute the actual workflow script against controlled GitHub
 states, including spoofed authors, wrong commits, incomplete results, running and failed reviews.
 
 CodeRabbit CLI availability could not be established from PATH in this environment, so no

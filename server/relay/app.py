@@ -40,10 +40,12 @@ def create_app(settings: Settings, backend) -> FastAPI:
             return error(401, 'unauthorized')
         return None
 
-    @app.get('/healthz')
+    @app.get('/health')
+    @app.get('/healthz')  # Legacy/local compatibility; Cloud Run reserves some z-ending paths.
     async def health():
         return {'ok': True}
 
+    @app.get('/ready')
     @app.get('/readyz')
     async def ready():
         # Configuration readiness only. No billable provider probes on health checks.

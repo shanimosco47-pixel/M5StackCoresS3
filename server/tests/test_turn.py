@@ -154,6 +154,13 @@ class TurnTests(unittest.TestCase):
         self.assertEqual(client.get('/readyz').status_code, 503)
         self.assertEqual(client.post('/v2/turn', content=wav()).status_code, 503)
 
+    def test_cloud_health_paths_work_without_provider_credentials(self):
+        client = TestClient(create_app(Settings(), Backend()))
+        self.assertEqual(client.get('/health').json(), {'ok': True})
+        self.assertEqual(client.get('/health').status_code, 200)
+        self.assertEqual(client.get('/ready').status_code, 503)
+        self.assertEqual(client.get('/ready').json(), {'configured': False})
+
     def test_full_replay_cache_preserves_existing_ids_after_silent_uploads(self):
         identifier = str(uuid.uuid4())
         headers = self.headers | {'X-Request-ID': identifier}
