@@ -1,6 +1,7 @@
 import base64
 import json
 import unittest
+from datetime import datetime, timezone
 
 import httpx
 
@@ -10,6 +11,27 @@ from tests.test_turn import settings, wav
 
 
 class ProviderTests(unittest.IsolatedAsyncioTestCase):
+    async def test_exchange_rate_requires_search_and_receives_today_context(self):
+        for prompt in ('מה שער הדולר?', 'What is the USD ILS exchange rate?'):
+            def handler(request):
+                body = json.loads(request.content)
+                self.assertEqual(body['tool_choice'], {'type': 'function', 'function': {'name': 'web_search'}})
+                self.assertIn(datetime.now(timezone.utc).date().isoformat(), body['messages'][0]['content'])
+                self.assertIn('publication date', body['messages'][0]['content'])
+                return httpx.Response(200, json={'choices': [{'message': {'content': 'נתון ישן'}}]})
+            providers = await self.client_for(handler, tavily_key='test-search')
+            with self.assertRaises(UpstreamError):
+                await providers.reply(prompt, True)
+
+    async def test_current_fact_unavailable_or_refused_does_not_invent_rate(self):
+        providers = await self.client_for(lambda request: self.fail('unavailable current fact reached model'))
+        self.assertIn('אינו זמין', (await providers.reply('מה שער הדולר?', True)).text)
+        def handler(request):
+            self.assertEqual(json.loads(request.content)['tool_choice'], 'none')
+            return httpx.Response(200, json={'choices': [{'message': {'content': 'אין לי נתון מאומת'}}]})
+        providers = await self.client_for(handler, tavily_key='test-search')
+        self.assertIn('מאומת', (await providers.reply('אל תחפש, מה שער הדולר?', True)).text)
+
     async def client_for(self, handler, **config):
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         self.addAsyncCleanup(client.aclose)
