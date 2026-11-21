@@ -1,48 +1,78 @@
-# Active session
+# Active M5 project session
 
-Exact current instruction: אל תעצור
-Earlier: מבחינתי תעשה כמה שיותר בעצמך
-Repository instruction: תשמור את כל העבודה והתיעוד כאן — https://github.com/shanimosco47-pixel/M5StackCoresS3
+Last consolidated: 2026-11-21. Current state supersedes older session entries in Git history.
 
-Goal: working Hebrew CoreS3 assistant with readable subtitles, faces, touch interruption,
-internet search and swappable cloud models; announce completion only after actual device validation.
+## Exact user instructions
 
-Current task: implement and test the cloud relay described in docs/ARCHITECTURE_REVIEW.md,
-preserving current firmware. User explicitly requested continuous autonomous implementation;
-do not add a plan-approval pause. No production deployment or device update has happened yet.
+- תעשה מה שצריך כדי לפתור את הבעיה ותסדר לי פתרון עובד
+- מבחינתי תעשה כמה שיותר בעצמך
+- אל תעצור
+- תשמור את כל העבודה והתיעוד כאן — https://github.com/shanimosco47-pixel/M5StackCoresS3
+- make sure there is a working github indipendent review working
+- כשתסיים תשמיע צליל ב M5 או יותר טוב - שיגיד שהוא סיים את העדכון
+- Latest provider-key decision: אפתח מפתחות יותר מאוחר
 
-Environment: working checkout is work/M5StackCoresS3 under the original workspace.
-Parent HEAD d8a6f97. M5Unified submodule is intentionally dirty from the documented upstream patch.
-Physical device remains on stable v0.14.3 with volume180 and bargein_en=1.
+Goal: Hebrew CoreS3 assistant with faces, readable subtitles, touch interruption, internet search
+and swappable cloud models. Announce completion on the device only after actual end-to-end validation.
 
-Findings: gcloud has a configured account/project but token refresh fails invalid_grant.
-Existing account presence is not authenticated cloud access. No project writes attempted.
-Python has FastAPI/httpx/uvicorn; use standard unittest for local behavior tests.
-No provider credentials have been obtained for the new relay.
+## Repository and physical device
 
-Plan: docs/superpowers/plans/2026-11-21-cloud-relay.md.
-Progress: relay boundary, providers and32behavior tests implemented and green, including clean venv.
-Ruff correctness and Bandit medium/high checks pass. Actual localhost health200/ready503 without keys.
-Separate reviewer found/reproduced upload replay, upload cancellation/UUID normalization and missing upload
-deadline; regression tests failed before fixes and pass after. Independent follow-up approved fixes and
-caught Cloud Run concurrency1 blocking cancel; docs now require4concurrent HTTP slots, one ASGI worker.
-GitHub user requested working independent review. PR1 opened and pushed successfully (no auth refresh needed).
-Python3.11/3.12andsecurityCI passed on68c6751. Copilot endpoint422ACTOR_INELIGIBLE, so switched to existing
-Codex GitHub app. Actual Codex review completed on68c6751and found replay-cache eviction bypass(P2).
-Regression failed before fix, passes after; cache now rejects new IDs when full. Relay33tests and8actual
-workflow-script tests pass. Need commit/push fixes and gate, resolve addressed thread and observe final review.
-CodeRabbit CLI not found on PATH; do not claim a CodeRabbit review or manually create its configuration.
-Cloud project selected by user: hey-usa. Gcloud login completed successfully; project access verified.
-BillingEnabled=False. Cloud Run/build/registry/Secret Manager activation refused without open billing.
-No billing account activated or deployment performed. User question pending: enable billing themselves,
-or choose hosting without a card. Provider env vars absent; Secret Manager cannot be inspected while API disabled.
-Codex GitHub app does not authenticate Actions-bot comments. Read-only gate checks completed summary;
-owner/agent must post @codex review after a push. Latest fix commit still needs final review after gate update.
-Clean venv work/relay-venv; local uvicorn session23284on127.0.0.1:18765. Full dependency audit passed.
-Next: secret scan/commit/push PR changes, observe final CI/review and resolve issues. Finish cloud login,
-verify provider keys privately, deploy with actual spending controls, integrate and validate the device.
+Work checkout: work/M5StackCoresS3, branch feature/cloud-voice-relay, PR1. Base main is d8a6f97.
+M5Unified submodule is intentionally dirty from the documented upstream patch; preserve it.
+Physical device still runs stable upstream v0.14.3, with volume180 and bargein_en=1.
+User confirmed Hebrew spoken replies, faces, center-tap interruption and top-left mute.
+Custom Hebrew/search firmware was built and tested but has not been flashed. Device has no relay adapter yet.
+Original flash/NVS backups and credentials remain local, never published.
 
-## Current deployment target (supersedes hey-usa)
-User created project M5Stack, ID m5stack-515405, number904152076132. New billing account verified open, currencyILS. Linked this project to that account; billingEnabled=true verified. Enabled Cloud Run, Secret Manager, Cloud Build, Artifact Registry, IAM and Billing Budgets APIs. Target region europe-west1. No provider secrets exist in this new project. Creating m5-voice-runtime and m5-voice-builder; builder receives roles/run.builder. No service deployed yet. Configure service-specific Cloud Run spend cap and overall alerts before deployment; do not claim an alert is a cap. Browser control remains unavailable, cloud CLI works. Actual GitHub Codex review on a882bb6 completed with no findings and all checks green; proof saved in PR1 comment7057901827.
+## Completed relay and review work
 
-Cloud bootstrap succeeded: native Cloud Run5ILS/month cap verified CONFIGURED and total-project5ILSalert created (not a global cap). Five scoped secret containers exist; only device-secret version1has a value. User explicitly said provider keys will be created later. First private Cloud Run revision voice-relay-00001-br8deployed successfully from a882bb6source. Authenticated /readyz returned503configured:false. Google Frontend intercepted /healthz with HTML404, despite /openapi.json proving route exists; official known-issues confirms reserved z-ending paths. Added canonical /health and /ready aliases; regression failed before fix and full34server tests pass after. Need commit/push cloud helpers/docs + aliases, deploy reviewed source revision with aliases, verify IAM-protected /health200and/ready503, observe fresh GitHub review/CI. No new provider speech calls or firmware writes performed. Full user/device completion remains deferred until provider keys and hardware integration.
+FastAPI v1 WAV / v2 text+sources+audio, Groq/OpenRouter/Tavily/Azure adapters, authentication,
+bounded uploads, WAV validation, silence filtering, tool limits, privacy denial, cancellation,
+timeouts and replay protection implemented. Private routing remains unapproved by default.
+34 relay tests and8actual-workflow gate tests pass. Ruff, Bandit medium/high and full pip-audit pass.
+Separate reviewer reproduced upload/replay/cancellation/deadline defects; all fixed with regressions.
+Actual Codex GitHub review found a replay-cache eviction bypass; reproduced, fixed and thread resolved.
+Codex reviewed1c57a31with no findings; all GitHub checks green on that commit.
+After any further push, an authorized owner/agent must comment @codex review. Actions-bot triggers
+cannot authenticate to Codex. Read-only gate checks bot identity, exact commit, completion and no findings.
+Copilot was tested and ineligible; CodeRabbit CLI availability unknown. Do not claim either reviewed the code.
+
+## Current cloud target and verified deployment
+
+User created project M5Stack, ID m5stack-515405, replacing the earlier hey-usa target.
+New open billing account linked; billingEnabled=true verified. Do not relink billing or repeat login.
+Required APIs enabled. Region europe-west1, service voice-relay.
+Separate m5-voice-runtime and m5-voice-builder identities exist; builder has roles/run.builder.
+Runtime can access only five voice-relay secret containers. Only device-secret version1has a value.
+Provider containers groq/openrouter/azure/tavily remain empty by the user's explicit deferral.
+
+Native Cloud Run monthly spend cap5ILSverified CONFIGURED. Overall project alert5ILSis NOT a hard cap.
+Cloud Build, storage and external provider charges are outside the Cloud Run service cap.
+Bootstrap rerun verified idempotence and preserved device-secret version1.
+
+Deployed source:1c57a31dc7bc42f90a5677139238178c2bd1a96b.
+Latest verified revision:voice-relay-00002-vpx.
+URL:https://voice-relay-kdmuqgf46a-ew.a.run.app
+Live verify_private.py passed:anonymous /health403;authenticated /health200ok:true;
+authenticated /ready503configured:false. IAM has no broad public invocation binding.
+Cloud Run uses min0/max1,CPU1,memory256Mi,HTTP concurrency4and one ASGI worker.
+
+Google Frontend intercepted /healthz with404 although the route existed in OpenAPI.
+Confirmed official reserved-path limitation; canonical /health and /ready aliases now work in cloud.
+Legacy z-ending routes remain only for compatibility. No insecure TLS or public-access workaround used.
+
+Browser control was unavailable; normal gcloud/API access works. No active local test server remains.
+Python clean venv:work/relay-venv. Operational helpers and current documentation are committed in the PR.
+
+## Remaining work
+
+1. Finish any current documentation-only push/review and save exact verification links in PR1.
+2. User will create provider keys later. Do not request keys in chat or create paid subscriptions.
+3. Use tools/cloud/set_provider_secrets.py in the user's interactive terminal, or Secret Manager UI.
+4. Validate real provider calls, approved model and Azure region; verify full-chain privacy and cost controls.
+5. Map provider secrets and finish runtime configuration while keeping private routing fail-closed until approved.
+6. Implement the CoreS3 relay adapter, preserving faces/subtitles/touch; validate actual speech/search/interruption.
+7. Only then arm update_notice and verify the M5 speaks the completion announcement.
+
+Current staging is healthy, private and intentionally not ready for voice. Do not describe the whole device
+migration as complete, do not flash an incomplete replacement, and do not claim an alert is a global cap.
