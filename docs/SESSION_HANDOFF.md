@@ -28,10 +28,15 @@ The source appendix was saved as reference, not treated as tested code.
 The user subsequently said “אל תעצור” and explicitly requested a working independent GitHub review.
 The relay is now implemented in server/ with32passing local tests and a separate read-only review.
 Provider tests use controlled HTTP transports; no new-provider live inference has run.
-The selected cloud project is hey-usa. Gcloud's previous credentials failed to refresh;
-a new login was started, but successful CLI authentication has not yet been established.
+The selected cloud project is hey-usa. Gcloud authentication was refreshed and project access verified.
+Billing is disabled; enabling Cloud Run/build/registry/Secret Manager was refused for this reason.
+User was asked to activate billing themselves or choose hosting without a card. No billing was activated.
 Code is on feature/cloud-voice-relay; GitHub checks and exact-head Copilot review must be observed before
-calling the GitHub review integration operational. No cloud or firmware deployment occurred.
+calling the GitHub review integration operational. The original Copilot gate failed eligibility;
+the existing Codex app actually reviewed the PR and found a replay-cache issue, fixed with regression.
+Actions-bot comments cannot authenticate to Codex: after pushing, the authorized owner/agent must request
+@codex review; the read-only gate then verifies current-head completion and no unresolved findings.
+No cloud or firmware deployment occurred.
 
 ## Sensitive material deliberately omitted
 

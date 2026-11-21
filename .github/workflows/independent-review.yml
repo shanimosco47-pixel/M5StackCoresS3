@@ -4,7 +4,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
+  issues: read
 concurrency:
   group: independent-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -16,7 +17,7 @@ jobs:
     timeout-minutes: 12
     steps:
       # No checkout or execution of PR code in this privileged job.
-      - name: Request review and require evidence of completion
+      - name: Require evidence of a completed independent review
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
@@ -38,10 +39,6 @@ jobs:
               return null;
             };
             let review = await observed();
-            if (!review) {
-              await github.rest.issues.createComment({owner, repo, issue_number: pull_number,
-                body: '@codex review'});
-            }
             for (let attempt = 0; attempt < 30; attempt++) {
               if (review?.state.status === 'completed') break;
               await new Promise(resolve => setTimeout(resolve, 20000));
@@ -49,7 +46,9 @@ jobs:
             }
             if (!review || review.state.status !== 'completed' ||
                 typeof review.state.has_unresolved_findings !== 'boolean') {
-              core.setFailed('No completed independent Codex review found for this commit.');
+              core.setFailed('No completed independent Codex review found for this commit. ' +
+                'An authorized maintainer must comment @codex review after pushing changes. ' +
+                'GitHub Actions bot comments cannot authenticate to Codex.');
               return;
             }
             await core.summary.addHeading('Independent review completed')

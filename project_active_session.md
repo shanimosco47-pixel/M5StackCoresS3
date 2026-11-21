@@ -32,8 +32,12 @@ Codex GitHub app. Actual Codex review completed on68c6751and found replay-cache 
 Regression failed before fix, passes after; cache now rejects new IDs when full. Relay33tests and8actual
 workflow-script tests pass. Need commit/push fixes and gate, resolve addressed thread and observe final review.
 CodeRabbit CLI not found on PATH; do not claim a CodeRabbit review or manually create its configuration.
-Cloud project selected by user: hey-usa. Browser console opened; gcloud auth login session20849 is still
-waiting on callback despite user reporting browser sign-in. Existing CLI probes still fail invalid_grant.
+Cloud project selected by user: hey-usa. Gcloud login completed successfully; project access verified.
+BillingEnabled=False. Cloud Run/build/registry/Secret Manager activation refused without open billing.
+No billing account activated or deployment performed. User question pending: enable billing themselves,
+or choose hosting without a card. Provider env vars absent; Secret Manager cannot be inspected while API disabled.
+Codex GitHub app does not authenticate Actions-bot comments. Read-only gate checks completed summary;
+owner/agent must post @codex review after a push. Latest fix commit still needs final review after gate update.
 Clean venv work/relay-venv; local uvicorn session23284on127.0.0.1:18765. Full dependency audit passed.
 Next: secret scan/commit/push PR changes, observe final CI/review and resolve issues. Finish cloud login,
 verify provider keys privately, deploy with actual spending controls, integrate and validate the device.

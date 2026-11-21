@@ -25,7 +25,10 @@ calls are used by these jobs. Static checks are not an AI code review.
 
 `Independent AI review`: uses the existing Codex GitHub integration without checking out PR code,
 then waits for its authenticated bot summary reporting a completed review on the exact PR head commit.
-It requests `@codex review` only when no summary exists for that commit. The job fails rather than
+Codex automatically reviews newly opened PRs in this repository. After further pushes, an authorized
+maintainer (or this development agent through the owner's authenticated GitHub CLI) comments `@codex review`.
+Live testing showed that a GitHub Actions bot cannot authenticate to Codex, so the gate is strictly
+read-only and never posts a misleading bot trigger. The job fails rather than
 pretend a review happened when eligibility, quota, permissions or the service are unavailable.
 Fork PRs require a maintainer to arrange review; their privileged automatic job is skipped.
 Codex review can consume the account's existing review allowance; this workflow does not

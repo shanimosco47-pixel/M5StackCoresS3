@@ -62,11 +62,11 @@ class ReviewGateTests(unittest.TestCase):
         self.assertTrue(result['written'])
         self.assertEqual(result['posts'], 0)
 
-    def test_missing_review_is_requested_but_never_reported_as_complete(self):
+    def test_missing_review_never_passes_or_posts_unauthenticated_bot_requests(self):
         result = run_gate([[]])
         self.assertTrue(result['failures'])
         self.assertFalse(result['written'])
-        self.assertEqual(result['posts'], 1)
+        self.assertEqual(result['posts'], 0)
 
     def test_unresolved_findings_fail_gate(self):
         self.assertTrue(run_gate([[summary(findings=True)]])['failures'])
