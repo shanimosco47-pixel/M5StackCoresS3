@@ -24,7 +24,14 @@ User considered API costs, then accepted exploring Gemini Live + Tavily free quo
 Browser inspection reached sign-in pages for both services; no accounts/keys were provisioned.
 User later supplied VOICE_ASSISTANT_DESIGN.md proposing a cloud relay with Groq/OpenRouter/Azure.
 We recommended the relay concept while preserving existing firmware and fixing the documented issues.
-The current request is to save this work here; it does not authorize treating the appendix as tested code.
+The source appendix was saved as reference, not treated as tested code.
+The user subsequently said “אל תעצור” and explicitly requested a working independent GitHub review.
+The relay is now implemented in server/ with32passing local tests and a separate read-only review.
+Provider tests use controlled HTTP transports; no new-provider live inference has run.
+The selected cloud project is hey-usa. Gcloud's previous credentials failed to refresh;
+a new login was started, but successful CLI authentication has not yet been established.
+Code is on feature/cloud-voice-relay; GitHub checks and exact-head Copilot review must be observed before
+calling the GitHub review integration operational. No cloud or firmware deployment occurred.
 
 ## Sensitive material deliberately omitted
 

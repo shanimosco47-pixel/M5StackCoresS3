@@ -1,0 +1,61 @@
+name: Independent AI review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: independent-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  copilot:
+    name: Copilot review of current commit
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      # No checkout or execution of PR code in this privileged job.
+      - name: Request review and require evidence of completion
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const head = context.payload.pull_request.head.sha;
+            const reviewers = new Set(['copilot-pull-request-reviewer[bot]', 'Copilot']);
+            const completed = async () => {
+              const reviews = await github.paginate(github.rest.pulls.listReviews,
+                {owner, repo, pull_number, per_page: 100});
+              return reviews.find(r => reviewers.has(r.user?.login) && r.commit_id === head &&
+                ['COMMENTED', 'APPROVED', 'CHANGES_REQUESTED'].includes(r.state));
+            };
+            let review = await completed();
+            if (!review) {
+              try {
+                await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/copilot-code-review',
+                  {owner, repo, pull_number, headers: {'X-GitHub-Api-Version': '2026-03-10'}});
+              } catch (error) {
+                if (error.status !== 409) {
+                  core.setFailed(`Independent review did not start (HTTP ${error.status}). ` +
+                    'Verify Copilot code-review eligibility, quota and repository permissions. No review is claimed.');
+                  return;
+                }
+              }
+              for (let attempt = 0; attempt < 30; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 20000));
+                review = await completed();
+                if (review) break;
+              }
+            }
+            if (!review) {
+              core.setFailed('No completed independent Copilot review found for this commit.');
+              return;
+            }
+            await core.summary.addHeading('Independent review completed')
+              .addLink('Review on this commit', review.html_url)
+              .addRaw(`\nCommit: ${head}\n\nState: ${review.state}. Completion is not human approval; resolve findings before merge.`)
+              .write();
+            if (review.state === 'CHANGES_REQUESTED') {
+              core.setFailed('Independent reviewer requested changes.');
+            }
