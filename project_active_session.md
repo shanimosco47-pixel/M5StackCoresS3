@@ -26,11 +26,14 @@ Ruff correctness and Bandit medium/high checks pass. Actual localhost health200/
 Separate reviewer found/reproduced upload replay, upload cancellation/UUID normalization and missing upload
 deadline; regression tests failed before fixes and pass after. Independent follow-up approved fixes and
 caught Cloud Run concurrency1 blocking cancel; docs now require4concurrent HTTP slots, one ASGI worker.
-GitHub user requested working independent review. Added behavior/security CI and exact-head Copilot review
-workflow; actual runs not yet observed. GitHub OAuth currently lacks workflow scope; push may need refresh.
+GitHub user requested working independent review. PR1 opened and pushed successfully (no auth refresh needed).
+Python3.11/3.12andsecurityCI passed on68c6751. Copilot endpoint422ACTOR_INELIGIBLE, so switched to existing
+Codex GitHub app. Actual Codex review completed on68c6751and found replay-cache eviction bypass(P2).
+Regression failed before fix, passes after; cache now rejects new IDs when full. Relay33tests and8actual
+workflow-script tests pass. Need commit/push fixes and gate, resolve addressed thread and observe final review.
 CodeRabbit CLI not found on PATH; do not claim a CodeRabbit review or manually create its configuration.
 Cloud project selected by user: hey-usa. Browser console opened; gcloud auth login session20849 is still
 waiting on callback despite user reporting browser sign-in. Existing CLI probes still fail invalid_grant.
-Clean venv work/relay-venv; local uvicorn session23284on127.0.0.1:18765. Full dependency audit session17600.
-Next: finish audit, secret scan/commit/push PR, observe CI/review and resolve issues. Finish cloud login,
+Clean venv work/relay-venv; local uvicorn session23284on127.0.0.1:18765. Full dependency audit passed.
+Next: secret scan/commit/push PR changes, observe final CI/review and resolve issues. Finish cloud login,
 verify provider keys privately, deploy with actual spending controls, integrate and validate the device.

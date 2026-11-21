@@ -28,23 +28,23 @@ model-generated tool arguments and source instructions; silent/empty audio; repl
 ## Task 1: relay boundary and pipeline
 
 Files: server/relay/app.py, config.py, audio.py, service.py, tests/test_turn.py.
-- [ ] Write behavior tests for authentication, body and WAV validation, Hebrew response contract,
+- [x] Write behavior tests for authentication, body and WAV validation, Hebrew response contract,
   compatibility v1, privacy denial, silent input, missing settings, provider failures, cancellation and concurrency.
-- [ ] Observe expected failure, implement the smallest working boundary/pipeline, rerun suite.
+- [x] Observe expected failure, implement the smallest working boundary/pipeline, rerun suite.
 
 ## Task 2: provider integrations and internet search
 
 Files: server/relay/providers.py, tests/test_providers.py.
-- [ ] Write tests at actual HTTP request/response boundaries using httpx MockTransport.
-- [ ] Implement Groq multipart STT, OpenRouter restricted routing and bounded web_search tool loop,
+- [x] Write tests at actual HTTP request/response boundaries using httpx MockTransport.
+- [x] Implement Groq multipart STT, OpenRouter restricted routing and bounded web_search tool loop,
   Tavily basic search with URL validation and Azure escaped SSML with validated WAV result.
-- [ ] Verify sanitised errors, malformed output and no unauthorized provider/model fallbacks.
+- [x] Verify sanitised errors, malformed output and no unauthorized provider/model fallbacks.
 
 ## Task 3: reproducible operation and deployment preparation
 
 Files: server/requirements.txt, Dockerfile, .dockerignore, README.md, .env.example, scripts.
-- [ ] Pin tested dependencies, document v1/v2 contract, limits and unresolved live-account requirements.
-- [ ] Exercise local health/ready endpoints and all tests; confirm no text/audio is logged.
+- [x] Pin tested dependencies, document v1/v2 contract, limits and unresolved live-account requirements.
+- [x] Exercise local health/ready endpoints and all tests; confirm no text/audio is logged.
 - [ ] Inspect cloud authentication and prepare deploy commands; do not target an unverified project.
-- [ ] Independent review, fix significant findings, secret scan, commit/push one targeted change.
+- [x] Independent review, fix significant findings, secret scan, commit/push one targeted change (PR1; final GitHub review still pending after fixes).
 - [ ] Update STATUS.md and session handoff honestly; continue device integration after live service validation.

@@ -154,6 +154,14 @@ class TurnTests(unittest.TestCase):
         self.assertEqual(client.get('/readyz').status_code, 503)
         self.assertEqual(client.post('/v2/turn', content=wav()).status_code, 503)
 
+    def test_full_replay_cache_preserves_existing_ids_after_silent_uploads(self):
+        identifier = str(uuid.uuid4())
+        headers = self.headers | {'X-Request-ID': identifier}
+        self.assertEqual(self.turn(headers=headers).status_code, 200)
+        statuses = [self.turn(audio=wav(sample=0)).status_code for _ in range(300)]
+        self.assertIn(429, statuses)  # New traffic must be refused before live replay IDs are lost.
+        self.assertEqual(self.turn(headers=headers).status_code, 409)
+
     def test_logs_do_not_contain_transcript_or_answer(self):
         with self.assertLogs('relay', level='INFO') as logs:
             self.assertEqual(self.turn().status_code, 200)

@@ -77,6 +77,7 @@ One turn at a time per process. Upload plus all providers share a 45-second dead
 Input RMS filtering reduces silence hallucinations but is not full voice activity detection.
 Replay prevention (10 minutes), request counters (default 6/minute, 100/day), and admission locks
 are **in memory**: they reset on restart and do not coordinate replicas.
+When the bounded replay cache fills, new IDs receive429until entries expire; unexpired IDs are never evicted.
 This is defense in depth, **not a hard spending cap**. Before public production deployment,
 configure durable distributed limits or independently enforced provider/spend caps.
 Set Cloud Run max instances=1, concurrency=4 and min instances=0, with one ASGI worker.

@@ -23,16 +23,25 @@ This separate reviewer is an agent in the development session, not a GitHub huma
 security review and pip-audit dependency vulnerability checks. No provider keys or billable AI
 calls are used by these jobs. Static checks are not an AI code review.
 
-`Independent AI review`: requests GitHub Copilot code review without checking out PR code,
-then waits for a completed review on the exact PR head commit. The job fails rather than
+`Independent AI review`: uses the existing Codex GitHub integration without checking out PR code,
+then waits for its authenticated bot summary reporting a completed review on the exact PR head commit.
+It requests `@codex review` only when no summary exists for that commit. The job fails rather than
 pretend a review happened when eligibility, quota, permissions or the service are unavailable.
 Fork PRs require a maintainer to arrange review; their privileged automatic job is skipped.
-Copilot review can consume the account's existing review/AI allowance; this workflow does not
+Codex review can consume the account's existing review allowance; this workflow does not
 purchase a subscription or enable paid overage. Findings must be read and resolved; a green
 completion job alone is not proof of no findings or a substitute for a human approval.
 
-The workflow must be observed running successfully before it is described as operational.
-Current live run/reviewer status will be recorded in the PR and docs/STATUS.md.
+The first live run proved that Copilot is ineligible on this account (HTTP422), so the gate was
+changed to the already connected Codex service. The actual Codex bot automatically started a
+review on PR1, verified through its GitHub comment and exact commit metadata.
+The final gate must still be observed passing before it is described as fully operational.
+
+The actual GitHub Codex review of commit68c6751 completed and found oneP2issue: the bounded replay
+cache evicted unexpired IDs after enough silent/invalid uploads. A regression test reproduced it;
+the fix refuses new IDs when capacity is full, preserving all unexpired IDs. The relay suite now
+has33tests. Eight additional tests execute the actual workflow script against controlled GitHub
+states, including spoofed authors, wrong commits, incomplete results, running and failed reviews.
 
 CodeRabbit CLI availability could not be established from PATH in this environment, so no
 CodeRabbit CLI review or configuration was claimed. No fake approval or self-approval is created.

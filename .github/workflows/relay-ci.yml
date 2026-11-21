@@ -2,9 +2,9 @@ name: Relay checks
 on:
   push:
     branches: [main, feature/cloud-voice-relay]
-    paths: ['server/**', '.github/workflows/relay-ci.yml']
+    paths: ['server/**', '.github/**']
   pull_request:
-    paths: ['server/**', '.github/workflows/relay-ci.yml']
+    paths: ['server/**', '.github/**']
   workflow_dispatch:
 permissions:
   contents: read
@@ -31,6 +31,8 @@ jobs:
       - name: Exercise relay and provider boundaries without secrets or external AI calls
         working-directory: server
         run: python -m unittest discover -s tests -v
+      - name: Verify the actual independent-review gate against controlled GitHub states
+        run: python -m unittest discover -s .github/tests -v
   security:
     name: Independent static security checks
     runs-on: ubuntu-latest

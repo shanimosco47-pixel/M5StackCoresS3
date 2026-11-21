@@ -113,10 +113,10 @@ def create_app(settings: Settings, backend) -> FastAPI:
             del recent[old]
         if identifier in recent:
             return error(409, 'duplicate_request', identifier)
+        if len(recent) >= 256:
+            # Never trade an unexpired replay guarantee for new traffic, even silent/invalid uploads.
+            return error(429, 'replay_cache_full', identifier)
         recent[identifier] = now + 600
-        # Bounded replay memory; local limits and replay protection reset on process restart.
-        while len(recent) > 256:
-            del recent[next(iter(recent))]
         # Reserve ID and device before the first await, including the upload phase.
         task = asyncio.create_task(process(request, identifier, profile))
         active[identifier] = task
